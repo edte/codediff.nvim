@@ -72,12 +72,19 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
 
   -- Create side-by-side windows
   vim.cmd("tabnew")
+  local initial_buf = vim.api.nvim_get_current_buf()  -- The unnamed buffer created by tabnew
   local left_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(left_win, left_buf)
 
   vim.cmd("vsplit")
   local right_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(right_win, right_buf)
+  
+  -- Delete the initial unnamed buffer that was created by tabnew
+  -- It's not needed since we replaced it with our diff buffers
+  if vim.api.nvim_buf_is_valid(initial_buf) and initial_buf ~= left_buf and initial_buf ~= right_buf then
+    pcall(vim.api.nvim_buf_delete, initial_buf, { force = true })
+  end
 
   -- Reset both cursors to line 1 BEFORE enabling scrollbind
   vim.api.nvim_win_set_cursor(left_win, {1, 0})
