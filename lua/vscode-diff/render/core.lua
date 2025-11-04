@@ -267,13 +267,18 @@ end
 -- Main Rendering Function
 -- ============================================================================
 
-function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, lines_diff, skip_right_content)
+function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, lines_diff, skip_right_content, skip_left_content)
   vim.api.nvim_buf_clear_namespace(left_bufnr, ns_highlight, 0, -1)
   vim.api.nvim_buf_clear_namespace(right_bufnr, ns_highlight, 0, -1)
   vim.api.nvim_buf_clear_namespace(left_bufnr, ns_filler, 0, -1)
   vim.api.nvim_buf_clear_namespace(right_bufnr, ns_filler, 0, -1)
 
-  vim.api.nvim_buf_set_lines(left_bufnr, 0, -1, false, original_lines)
+  -- Set content for left buffer (unless it's a virtual file that will be loaded by BufReadCmd)
+  if not skip_left_content then
+    vim.api.nvim_buf_set_lines(left_bufnr, 0, -1, false, original_lines)
+  end
+  
+  -- Set content for right buffer (unless it's an existing file buffer)
   if not skip_right_content then
     vim.api.nvim_buf_set_lines(right_bufnr, 0, -1, false, modified_lines)
   end

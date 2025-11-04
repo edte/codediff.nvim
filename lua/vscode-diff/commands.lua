@@ -36,8 +36,14 @@ local function handle_git_diff(revision)
       local lines_current = vim.api.nvim_buf_get_lines(0, 0, -1, false)
       
       local lines_diff = diff.compute_diff(lines_git, lines_current)
+      
+      -- Get git root for virtual file URL
+      local git_root = git.get_git_root(current_file)
+      
       render.create_diff_view(lines_git, lines_current, lines_diff, {
         right_file = current_file,
+        git_revision = revision,
+        git_root = git_root,
       })
     end)
   end)

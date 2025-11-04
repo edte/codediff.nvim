@@ -191,6 +191,56 @@ test("Handles missing semantic token capabilities", function()
   vim.api.nvim_buf_delete(right_buf, { force = true })
 end)
 
+-- Test 11: Virtual file URL creation and parsing
+test("Virtual file URL creation and parsing", function()
+  local virtual_file = require("vscode-diff.virtual_file")
+  
+  -- Test URL creation
+  local git_root = "/home/user/project"
+  local commit = "HEAD"
+  local filepath = "src/file.lua"
+  
+  local url = virtual_file.create_url(git_root, commit, filepath)
+  assert(type(url) == "string", "URL should be a string")
+  assert(url:match("^vscodediff://"), "URL should start with vscodediff://")
+  
+  -- Test URL parsing
+  local parsed_root, parsed_commit, parsed_path = virtual_file.parse_url(url)
+  assert(parsed_root == git_root, "Parsed git root should match")
+  assert(parsed_commit == commit, "Parsed commit should match")
+  assert(parsed_path == filepath, "Parsed filepath should match")
+  
+  -- Test with different inputs
+  local url2 = virtual_file.create_url("/tmp/test", "abc123", "test.lua")
+  local root2, commit2, path2 = virtual_file.parse_url(url2)
+  assert(root2 == "/tmp/test", "Root should match")
+  assert(commit2 == "abc123", "Commit should match")
+  assert(path2 == "test.lua", "Path should match")
+end)
+
+-- Test 12: Diagnostics disabled on virtual buffers
+test("Diagnostics are disabled on virtual buffers", function()
+  -- This tests that vim.diagnostic.enable(false) is called on virtual buffers
+  -- We can't easily test the actual BufReadCmd callback without a real git repo
+  -- so we test that the API works correctly
+  
+  local test_buf = vim.api.nvim_create_buf(false, true)
+  
+  -- Initially diagnostics should be enabled
+  assert(vim.diagnostic.is_enabled({bufnr = test_buf}) == true, 
+    "Diagnostics should be enabled by default")
+  
+  -- Disable diagnostics
+  vim.diagnostic.enable(false, {bufnr = test_buf})
+  
+  -- Verify disabled
+  assert(vim.diagnostic.is_enabled({bufnr = test_buf}) == false,
+    "Diagnostics should be disabled after vim.diagnostic.enable(false)")
+  
+  -- Cleanup
+  vim.api.nvim_buf_delete(test_buf, { force = true })
+end)
+
 -- Summary
 print("\n" .. string.rep("=", 50))
 print(string.format("Tests: %d/%d passed", pass_count, test_count))

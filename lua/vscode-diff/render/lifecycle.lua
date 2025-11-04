@@ -54,6 +54,14 @@ local function cleanup_diff(tabpage)
   clear_buffer_highlights(diff.left_bufnr)
   clear_buffer_highlights(diff.right_bufnr)
   
+  -- Delete left buffer if it's a virtual file (starts with vscodediff://)
+  if vim.api.nvim_buf_is_valid(diff.left_bufnr) then
+    local bufname = vim.api.nvim_buf_get_name(diff.left_bufnr)
+    if bufname:match('^vscodediff://') then
+      pcall(vim.api.nvim_buf_delete, diff.left_bufnr, { force = true })
+    end
+  end
+  
   -- Clear window variables if windows still exist
   if vim.api.nvim_win_is_valid(diff.left_win) then
     vim.w[diff.left_win].vscode_diff_restore = nil
