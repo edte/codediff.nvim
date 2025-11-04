@@ -113,6 +113,28 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
     local unique_id = math.random(1000000, 9999999)
     pcall(vim.api.nvim_buf_set_name, left_buf, string.format("Original_%d", unique_id))
   end
+  
+  -- Enable syntax highlighting on left buffer
+  -- Detect filetype from the right buffer (the actual file)
+  if opts.right_file then
+    -- Get filetype from right buffer (the actual file)
+    local filetype = vim.bo[right_buf].filetype
+    if filetype and filetype ~= "" then
+      vim.bo[left_buf].filetype = filetype
+    else
+      -- Fallback: detect from filename
+      local ft = vim.filetype.match({ filename = opts.right_file })
+      if ft then
+        vim.bo[left_buf].filetype = ft
+      end
+    end
+    
+    -- Apply LSP semantic tokens (async, non-blocking)
+    vim.schedule(function()
+      local semantic = require('vscode-diff.render.semantic')
+      semantic.apply_semantic_tokens(left_buf, right_buf)
+    end)
+  end
 
   -- Register this diff view for lifecycle management
   local current_tab = vim.api.nvim_get_current_tabpage()
