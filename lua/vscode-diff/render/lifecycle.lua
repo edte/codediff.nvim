@@ -6,7 +6,7 @@ local highlights = require('vscode-diff.render.highlights')
 local config = require('vscode-diff.config')
 
 -- Track active diff sessions
--- Structure: { tabpage_id = { left_bufnr, right_bufnr, left_win, right_win, saved_state } }
+-- Structure: { tabpage_id = { left_bufnr, right_bufnr, left_win, right_win, left_uri, saved_state } }
 local active_diffs = {}
 
 -- Autocmd group for cleanup
@@ -51,11 +51,22 @@ function M.register(tabpage, left_bufnr, right_bufnr, left_win, right_win)
   local left_state = save_buffer_state(left_bufnr)
   local right_state = save_buffer_state(right_bufnr)
   
+  -- Cache the left buffer URI NOW before it gets deleted
+  -- This is needed to send didClose notification even after buffer deletion
+  local left_uri = nil
+  if vim.api.nvim_buf_is_valid(left_bufnr) then
+    local bufname = vim.api.nvim_buf_get_name(left_bufnr)
+    if bufname:match('^vscodediff://') then
+      left_uri = vim.uri_from_bufnr(left_bufnr)
+    end
+  end
+  
   active_diffs[tabpage] = {
     left_bufnr = left_bufnr,
     right_bufnr = right_bufnr,
     left_win = left_win,
     right_win = right_win,
+    left_uri = left_uri,  -- Cache URI for didClose notification
     left_state = left_state,
     right_state = right_state,
   }
@@ -99,7 +110,22 @@ local function cleanup_diff(tabpage)
   restore_buffer_state(diff.left_bufnr, diff.left_state)
   restore_buffer_state(diff.right_bufnr, diff.right_state)
   
-  -- Delete left buffer if it's a virtual file (starts with vscodediff://)
+  -- Send didClose notification for virtual buffer
+  -- This prevents "already open" errors when reopening same file in diff
+  -- Uses cached URI since the buffer might already be deleted at cleanup time
+  if diff.left_uri then
+    local clients = vim.lsp.get_clients({ bufnr = diff.right_bufnr })
+    
+    for _, client in ipairs(clients) do
+      if client.server_capabilities.semanticTokensProvider then
+        pcall(client.notify, 'textDocument/didClose', {
+          textDocument = { uri = diff.left_uri }
+        })
+      end
+    end
+  end
+  
+  -- Delete left buffer if it's still valid
   if vim.api.nvim_buf_is_valid(diff.left_bufnr) then
     local bufname = vim.api.nvim_buf_get_name(diff.left_bufnr)
     if bufname:match('^vscodediff://') then
