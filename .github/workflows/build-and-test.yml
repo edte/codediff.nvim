@@ -16,6 +16,10 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             runs-on: ubuntu-latest
+          # Linux ARM64 (Partner runner - in public beta)
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            runs-on: ubuntu-24.04-arm
           # macOS x64 (Intel)
           - os: macos-13
             arch: x64
@@ -28,8 +32,10 @@ jobs:
           - os: windows-latest
             arch: x64
             runs-on: windows-latest
-    # Note: ARM64 support on Linux and Windows requires GitHub Team/Enterprise plan
-    # The C code is portable and will build correctly on ARM64 when native runners are available
+          # Windows ARM64 (Partner runner - in public beta)
+          - os: windows-11-arm
+            arch: arm64
+            runs-on: windows-11-arm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,13 +46,13 @@ jobs:
           node-version: 'lts/*'
 
       - name: Install build tools (Ubuntu)
-        if: startsWith(matrix.os, 'ubuntu')
+        if: startsWith(matrix.runs-on, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake
 
       - name: Install Neovim (Ubuntu)
-        if: startsWith(matrix.os, 'ubuntu')
+        if: startsWith(matrix.runs-on, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
@@ -56,13 +62,13 @@ jobs:
           nvim --version | head -n 1
 
       - name: Install Neovim (macOS)
-        if: startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.runs-on, 'macos')
         run: |
           brew install --HEAD neovim
           nvim --version | head -n 1
 
       - name: Install Neovim (Windows)
-        if: startsWith(matrix.os, 'windows')
+        if: startsWith(matrix.runs-on, 'windows')
         shell: pwsh
         run: |
           choco install neovim --pre -y
@@ -70,23 +76,23 @@ jobs:
           nvim --version | Select-Object -First 1
 
       - name: Build library (Ubuntu/macOS)
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.runs-on, 'ubuntu') || startsWith(matrix.runs-on, 'macos')
         run: |
           make clean || true
           make
 
       - name: Build library (Windows)
-        if: startsWith(matrix.os, 'windows')
+        if: startsWith(matrix.runs-on, 'windows')
         run: |
           .\build.cmd
 
       - name: Run C unit tests (Ubuntu/macOS)
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.runs-on, 'ubuntu') || startsWith(matrix.runs-on, 'macos')
         run: |
           make test-c
 
       - name: Run C unit tests (Windows)
-        if: startsWith(matrix.os, 'windows')
+        if: startsWith(matrix.runs-on, 'windows')
         shell: cmd
         run: |
           cmake -B build
@@ -95,13 +101,13 @@ jobs:
           ctest -C Release --output-on-failure
 
       - name: Run Neovim tests (Ubuntu/macOS)
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.runs-on, 'ubuntu') || startsWith(matrix.runs-on, 'macos')
         run: |
           chmod +x tests/run_tests.sh
           tests/run_tests.sh
 
       - name: Run Neovim tests (Windows)
-        if: startsWith(matrix.os, 'windows')
+        if: startsWith(matrix.runs-on, 'windows')
         shell: bash
         run: |
           export PATH="/c/tools/neovim/nvim-win64/bin:$PATH"
