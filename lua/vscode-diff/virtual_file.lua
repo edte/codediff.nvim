@@ -45,21 +45,21 @@ function M.setup()
     callback = function(args)
       local url = args.match
       local buf = args.buf
-      
+
       local git_root, commit, filepath = M.parse_url(url)
-      
+
       if not git_root or not commit or not filepath then
         vim.notify('Invalid vscodediff URL: ' .. url, vim.log.levels.ERROR)
         return
       end
-      
+
       -- Set buffer options FIRST to prevent LSP attachment
       vim.bo[buf].buftype = 'nowrite'
       vim.bo[buf].bufhidden = 'wipe'
-      
+
       -- Get the file content from git using the new async API
       local git = require('vscode-diff.git')
-      
+
       git.get_file_content(commit, git_root, filepath, function(err, lines)
         vim.schedule(function()
           if err then
@@ -72,7 +72,7 @@ function M.setup()
             vim.bo[buf].readonly = true
             return
           end
-          
+
           -- Set the content
           api.nvim_buf_set_lines(buf, 0, -1, false, lines)
           

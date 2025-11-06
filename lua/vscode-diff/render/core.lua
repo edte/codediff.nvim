@@ -99,20 +99,31 @@ local function apply_char_highlight(bufnr, char_range, hl_group, lines)
     local line_content = lines[end_line]
     end_col = math.min(end_col, #line_content + 1)
   end
+  
+  -- Verify buffer has enough lines (buffer may have changed since diff was computed)
+  local buf_line_count = vim.api.nvim_buf_line_count(bufnr)
+  if start_line > buf_line_count or end_line > buf_line_count then
+    return
+  end
 
   if start_line == end_line then
     local line_idx = start_line - 1
     if line_idx >= 0 then
-      vim.api.nvim_buf_set_extmark(bufnr, ns_highlight, line_idx, start_col - 1, {
+      -- Additional safety: verify column is within current buffer line length
+      local ok = pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_highlight, line_idx, start_col - 1, {
         end_col = end_col - 1,
         hl_group = hl_group,
         priority = 200,
       })
+      if not ok then
+        -- Column out of range, skip this highlight
+        return
+      end
     end
   else
     local first_line_idx = start_line - 1
     if first_line_idx >= 0 then
-      vim.api.nvim_buf_set_extmark(bufnr, ns_highlight, first_line_idx, start_col - 1, {
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_highlight, first_line_idx, start_col - 1, {
         end_line = first_line_idx + 1,
         end_col = 0,
         hl_group = hl_group,
@@ -122,8 +133,8 @@ local function apply_char_highlight(bufnr, char_range, hl_group, lines)
 
     for line = start_line + 1, end_line - 1 do
       local line_idx = line - 1
-      if line_idx >= 0 then
-        vim.api.nvim_buf_set_extmark(bufnr, ns_highlight, line_idx, 0, {
+      if line_idx >= 0 and line <= buf_line_count then
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_highlight, line_idx, 0, {
           end_line = line_idx + 1,
           end_col = 0,
           hl_group = hl_group,
@@ -134,8 +145,8 @@ local function apply_char_highlight(bufnr, char_range, hl_group, lines)
 
     if end_col > 1 or end_line ~= start_line then
       local last_line_idx = end_line - 1
-      if last_line_idx >= 0 and last_line_idx ~= first_line_idx then
-        vim.api.nvim_buf_set_extmark(bufnr, ns_highlight, last_line_idx, 0, {
+      if last_line_idx >= 0 and last_line_idx ~= first_line_idx and end_line <= buf_line_count then
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_highlight, last_line_idx, 0, {
           end_col = end_col - 1,
           hl_group = hl_group,
           priority = 200,

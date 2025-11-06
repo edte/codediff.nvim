@@ -10,10 +10,6 @@ local git = require("vscode-diff.git")
 function M.setup(opts)
   config.setup(opts)
   
-  -- Setup virtual file scheme for git revisions
-  local virtual_file = require("vscode-diff.virtual_file")
-  virtual_file.setup()
-  
   -- Setup highlights (this also initializes lifecycle management)
   render.setup_highlights()
 end

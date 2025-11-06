@@ -5,6 +5,7 @@ local core = require('vscode-diff.render.core')
 local lifecycle = require('vscode-diff.render.lifecycle')
 local semantic = require('vscode-diff.render.semantic_tokens')
 local virtual_file = require('vscode-diff.virtual_file')
+local auto_refresh = require('vscode-diff.auto_refresh')
 
 -- Buffer type enumeration
 M.BufferType = {
@@ -123,7 +124,7 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
 
   -- Register this diff view for lifecycle management
   local current_tab = vim.api.nvim_get_current_tabpage()
-  lifecycle.register(current_tab, left_buf, right_buf, left_win, right_win)
+  lifecycle.register(current_tab, left_buf, right_buf, left_win, right_win, original_lines, modified_lines, lines_diff)
 
   -- Set up rendering after buffers are ready
   -- For virtual files, we wait for VscodeDiffVirtualFileLoaded event
@@ -152,6 +153,16 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
         vim.api.nvim_set_current_win(right_win)
         vim.cmd("normal! zz")
       end
+    end
+
+    -- Enable auto-refresh for any real file buffers
+    -- Both buffers could be real files being compared
+    if opts.left_type == M.BufferType.REAL_FILE then
+      auto_refresh.enable(left_buf, left_buf, right_buf)
+    end
+    
+    if opts.right_type == M.BufferType.REAL_FILE then
+      auto_refresh.enable(right_buf, left_buf, right_buf)
     end
   end
 

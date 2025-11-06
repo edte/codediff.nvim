@@ -6,6 +6,10 @@ vim.g.loaded_vscode_diff = 1
 
 local render = require("vscode-diff.render")
 local commands = require("vscode-diff.commands")
+local virtual_file = require("vscode-diff.virtual_file")
+
+-- Setup virtual file scheme
+virtual_file.setup()
 
 -- Setup highlights
 render.setup_highlights()
