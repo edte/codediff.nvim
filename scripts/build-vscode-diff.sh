@@ -121,9 +121,6 @@ function main() {
 main();
 EOF
 
-# echo "Installing bundler..."
-# npm init -y > /dev/null 2>&1
-# npm install --no-save esbuild > /dev/null 2>&1
 
 echo "Bundling TypeScript code into single JavaScript file..."
 npx esbuild vscode-diff-wrapper.ts --bundle --platform=node --format=esm --outfile=vscode-diff.mjs
