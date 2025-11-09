@@ -22,21 +22,16 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 
 - Neovim >= 0.7.0 (for Lua FFI support; 0.10+ recommended for vim.system)
 - Git (for git diff features)
+- `curl` or `wget` (for automatic binary download)
 
-**Build requirements (choose one):**
-- **Linux/macOS/BSD**: GCC/Clang and Make
-- **Windows**: One of the following:
-  - Visual Studio (MSVC) - standalone `build.cmd` works out of the box
-  - MinGW-w64 (GCC) and Make
-  - CMake (any generator)
+**No compiler required!** The plugin automatically downloads pre-built binaries from GitHub releases.
 
 ### Using lazy.nvim
 
-**Linux/macOS/BSD:**
+**Simple installation (all platforms):**
 ```lua
 {
-  dir = "~/.local/share/nvim/vscode-diff.nvim",  -- Update this path
-  build = "make clean && make",
+  "esmuellert/vscode-diff.nvim",
   config = function()
     require("vscode-diff.config").setup({
       -- Optional configuration
@@ -45,31 +40,29 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 }
 ```
 
-**Windows:**
-```lua
-{
-  dir = "~/AppData/Local/nvim-data/vscode-diff.nvim",  -- Update this path
-  build = "build.cmd",  -- Or: "cmake -B build && cmake --build build"
-  config = function()
-    require("vscode-diff.config").setup({
-      -- Optional configuration
-    })
-  end,
-}
-```
+The C library will be downloaded automatically on first use. No `build` step needed!
 
 ### Manual Installation
 
 1. Clone the repository:
 ```bash
-git clone <repo-url> ~/.local/share/nvim/vscode-diff.nvim
-cd ~/.local/share/nvim/vscode-diff.nvim
+git clone https://github.com/esmuellert/vscode-diff.nvim ~/.local/share/nvim/vscode-diff.nvim
 ```
 
-2. Build the C module:
+2. Add to your Neovim runtime path in `init.lua`:
+```lua
+vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
+```
+
+The C library will be downloaded automatically on first use.
+
+### Building from Source (Optional)
+
+If you prefer to build the C library yourself instead of using pre-built binaries:
 
 **Linux/macOS/BSD:**
 ```bash
+cd ~/.local/share/nvim/vscode-diff.nvim
 make clean && make
 ```
 
@@ -85,10 +78,9 @@ REM Option 3: CMake with MinGW
 cmake -B build -G "MinGW Makefiles" && cmake --build build
 ```
 
-3. Add to your Neovim runtime path in `init.lua`:
-```lua
-vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
-```
+**Build requirements:**
+- **Linux/macOS/BSD**: GCC/Clang and Make
+- **Windows**: Visual Studio (MSVC), MinGW-w64 (GCC), or CMake
 
 ## Usage
 
