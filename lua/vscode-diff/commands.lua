@@ -2,8 +2,6 @@
 local M = {}
 
 local git = require("vscode-diff.git")
-local diff = require("vscode-diff.diff")
-local render = require("vscode-diff.render")
 
 --- Handles diffing the current buffer against a given git revision.
 -- @param revision string: The git revision (e.g., "HEAD", commit hash, branch name) to compare the current file against.
@@ -51,33 +49,18 @@ local function handle_git_diff(revision)
           -- Read fresh buffer content right before creating diff view
           local lines_current = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
-          local config = require("vscode-diff.config")
-          local diff_options = {
-            max_computation_time_ms = config.options.diff.max_computation_time_ms,
+          -- Create diff view
+          local view = require('vscode-diff.render.view')
+          ---@type SessionConfig
+          local session_config = {
+            mode = "standalone",
+            git_root = git_root,
+            original_path = relative_path,
+            modified_path = relative_path,
+            original_revision = commit_hash,
+            modified_revision = "WORKING",
           }
-          local lines_diff = diff.compute_diff(lines_git, lines_current, diff_options)
-          if not lines_diff then
-            vim.notify("Failed to compute diff", vim.log.levels.ERROR)
-            return
-          end
-
-          -- Create lifecycle session FIRST with git context
-          local lifecycle = require('vscode-diff.render.lifecycle')
-          -- Create new tab for diff view
-          vim.cmd("tabnew")
-          local tabpage = vim.api.nvim_get_current_tabpage()
-          lifecycle.create_session(
-            tabpage,
-            "standalone",  -- mode
-            git_root,      -- git_root
-            relative_path, -- original_path
-            relative_path, -- modified_path (same file, different versions)
-            commit_hash,   -- original_revision (git version)
-            "WORKING"      -- modified_revision (current working copy)
-          )
-
-          -- Now create diff view (it reads everything from lifecycle)
-          render.create_diff_view(lines_git, lines_current, lines_diff, tabpage, filetype)
+          view.create(lines_git, lines_current, session_config, filetype)
         end)
       end)
     end)
@@ -88,36 +71,21 @@ local function handle_file_diff(file_a, file_b)
   local lines_a = vim.fn.readfile(file_a)
   local lines_b = vim.fn.readfile(file_b)
 
-  local config = require("vscode-diff.config")
-  local diff_options = {
-    max_computation_time_ms = config.options.diff.max_computation_time_ms,
-  }
-  local lines_diff = diff.compute_diff(lines_a, lines_b, diff_options)
-  if not lines_diff then
-    vim.notify("Failed to compute diff", vim.log.levels.ERROR)
-    return
-  end
-
   -- Determine filetype from first file
   local filetype = vim.filetype.match({ filename = file_a }) or ""
 
-  -- Create lifecycle session FIRST (no git context for file compare)
-  local lifecycle = require('vscode-diff.render.lifecycle')
-  -- Create new tab for diff view
-  vim.cmd("tabnew")
-  local tabpage = vim.api.nvim_get_current_tabpage()
-  lifecycle.create_session(
-    tabpage,
-    "standalone",  -- mode
-    nil,           -- git_root (no git for file compare)
-    file_a,        -- original_path (absolute)
-    file_b,        -- modified_path (absolute)
-    nil,           -- original_revision (nil = non-git file)
-    nil            -- modified_revision (nil = non-git file)
-  )
-
-  -- Create diff view (it reads everything from lifecycle)
-  render.create_diff_view(lines_a, lines_b, lines_diff, tabpage, filetype)
+  -- Create diff view
+  local view = require('vscode-diff.render.view')
+  ---@type SessionConfig
+  local session_config = {
+    mode = "standalone",
+    git_root = nil,
+    original_path = file_a,
+    modified_path = file_b,
+    original_revision = nil,
+    modified_revision = nil,
+  }
+  view.create(lines_a, lines_b, session_config, filetype)
 end
 
 function M.vscode_diff(opts)
