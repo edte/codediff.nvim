@@ -107,9 +107,21 @@ function M.create(status_result, git_root, tabpage, width)
   local function on_file_select(file_data)
     local git = require('vscode-diff.git')
     local view = require('vscode-diff.render.view')
+    local lifecycle = require('vscode-diff.render.lifecycle')
     
     local file_path = file_data.path
     local abs_path = git_root .. "/" .. file_path
+
+    -- Check if this file is already being displayed
+    local session = lifecycle.get_session(tabpage)
+    if session then
+      -- Compare paths (modified_path is the full path, original_path is relative)
+      if session.modified_path == abs_path or 
+         (session.git_root and session.original_path == file_path) then
+        -- Already showing this file, skip update
+        return
+      end
+    end
 
     -- Resolve HEAD to commit hash first
     git.resolve_revision("HEAD", git_root, function(err_resolve, commit_hash)

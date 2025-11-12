@@ -117,20 +117,15 @@ local function handle_explorer()
           return
         end
 
-        -- Create initial empty diff view with explorer mode
+        -- Create explorer view with empty diff panes initially
         local view = require('vscode-diff.render.view')
-        local empty_lines = {""}
-        
-        -- Create temp file for initial placeholder
-        local temp_path = vim.fn.tempname()
-        vim.fn.writefile(empty_lines, temp_path)
         
         ---@type SessionConfig
         local session_config = {
           mode = "explorer",
           git_root = git_root,
-          original_path = temp_path,
-          modified_path = temp_path,
+          original_path = "",  -- Empty indicates explorer mode placeholder
+          modified_path = "",
           original_revision = nil,
           modified_revision = nil,
           explorer_data = {
@@ -139,7 +134,8 @@ local function handle_explorer()
         }
         
         -- view.create handles everything: tab, windows, explorer, and lifecycle
-        view.create(empty_lines, empty_lines, session_config, "")
+        -- Empty lines and paths - explorer will populate via first file selection
+        view.create({}, {}, session_config, "")
       end)
     end)
   end)
