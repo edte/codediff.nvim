@@ -23,6 +23,20 @@ if vim.fn.isdirectory(plenary_dir) == 0 then
 end
 vim.opt.rtp:prepend(plenary_dir)
 
+-- Setup nui.nvim (required for explorer mode)
+local nui_dir = vim.fn.stdpath("data") .. "/nui.nvim"
+if vim.fn.isdirectory(nui_dir) == 0 then
+  print("Installing nui.nvim for tests...")
+  vim.fn.system({
+    "git",
+    "clone",
+    "--depth=1",
+    "https://github.com/MunifTanjim/nui.nvim",
+    nui_dir,
+  })
+end
+vim.opt.rtp:prepend(nui_dir)
+
 -- Load plugin files (for integration tests that need commands)
 vim.cmd('runtime! plugin/*.lua plugin/*.vim')
 

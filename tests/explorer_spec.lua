@@ -288,6 +288,13 @@ describe("Explorer Mode", function()
 
   -- Test 6: First file is auto-selected and displayed
   it("Auto-selects and displays first file", function()
+    -- Skip if nui.nvim is not available
+    local has_nui = pcall(require, "nui.tree")
+    if not has_nui then
+      pending("nui.nvim not available")
+      return
+    end
+
     vim.cmd("edit " .. temp_dir .. "/file1.txt")
     vim.cmd("CodeDiff")
     
