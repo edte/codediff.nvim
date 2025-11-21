@@ -5,7 +5,12 @@
 vim.env.VSCODE_DIFF_NO_AUTO_INSTALL = "1"
 
 -- Add current directory to runtimepath
-vim.opt.rtp:prepend(".")
+local cwd = vim.fn.getcwd()
+vim.opt.rtp:prepend(cwd)
+
+-- Ensure lua/ directory is in package.path for direct requires
+package.path = package.path .. ";" .. cwd .. "/lua/?.lua;" .. cwd .. "/lua/?/init.lua"
+
 vim.opt.swapfile = false
 
 -- Setup plenary.nvim in Neovim's data directory (proper location)
