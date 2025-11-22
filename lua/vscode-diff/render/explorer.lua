@@ -106,14 +106,14 @@ local function prepare_node(node, max_width)
     local directory = full_path:sub(1, -(#filename + 1))  -- Remove filename, keep trailing /
     
     -- Calculate how much width we've used and reserve for status
-    local used_width = #indent + #icon_part
-    local status_reserve = #status_symbol + 2  -- 2 spaces padding before status
+    local used_width = vim.fn.strdisplaywidth(indent) + vim.fn.strdisplaywidth(icon_part)
+    local status_reserve = vim.fn.strdisplaywidth(status_symbol) + 2  -- 2 spaces padding before status
     local available_for_content = max_width - used_width - status_reserve
     
     -- VSCode shows: filename + directory (dimmed), truncate directory if needed
-    local filename_len = #filename
-    local directory_len = #directory
-    local space_len = (#directory > 0) and 1 or 0  -- Account for space between filename and directory
+    local filename_len = vim.fn.strdisplaywidth(filename)
+    local directory_len = vim.fn.strdisplaywidth(directory)
+    local space_len = (directory_len > 0) and 1 or 0  -- Account for space between filename and directory
     
     if filename_len + space_len + directory_len > available_for_content then
       -- Prioritize showing full filename, truncate directory from end (right)
@@ -121,7 +121,7 @@ local function prepare_node(node, max_width)
       if available_for_dir > 3 then
         -- Show truncated directory (from the start, hide the end)
         local ellipsis = "..."
-        local chars_to_keep = available_for_dir - #ellipsis
+        local chars_to_keep = available_for_dir - vim.fn.strdisplaywidth(ellipsis)
         directory = directory:sub(1, chars_to_keep) .. ellipsis
       else
         -- Not enough space for directory, just show filename
@@ -138,7 +138,7 @@ local function prepare_node(node, max_width)
     end
     
     -- Add padding to push status symbol to the right edge
-    local content_len = #filename + space_len + #directory
+    local content_len = vim.fn.strdisplaywidth(filename) + space_len + vim.fn.strdisplaywidth(directory)
     local padding_needed = available_for_content - content_len + 2
     if padding_needed > 0 then
       line:append(string.rep(" ", padding_needed))
@@ -169,6 +169,8 @@ function M.create(status_result, git_root, tabpage, width, base_revision)
       relativenumber = false,
       cursorline = true,
       wrap = false,
+      signcolumn = "no",
+      foldcolumn = "0",
     },
   })
 

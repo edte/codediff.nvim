@@ -23,6 +23,7 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 - Neovim >= 0.7.0 (for Lua FFI support; 0.10+ recommended for vim.system)
 - Git (for git diff features)
 - `curl` or `wget` (for automatic binary download)
+- `nui.nvim` (for explorer UI)
 
 **No compiler required!** The plugin automatically downloads pre-built binaries from GitHub releases.
 
@@ -32,6 +33,9 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 ```lua
 {
   "esmuellert/vscode-diff.nvim",
+  dependencies = {
+    "MunifTanjim/nui.nvim",
+  },
   config = function()
     require("vscode-diff.config").setup({
       -- Optional configuration

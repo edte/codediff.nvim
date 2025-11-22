@@ -17,20 +17,6 @@ M.defaults = {
     disable_inlay_hints = true,  -- Disable inlay hints in diff windows for cleaner view
     max_computation_time_ms = 5000,  -- Maximum time for diff computation (5 seconds, VSCode default)
   },
-
-  -- Buffer options
-  buffer_options = {
-    modifiable = false,
-    readonly = true,
-    buftype = "nofile",
-  },
-
-  -- Window options
-  window_options = {
-    scrollbind = true,
-    cursorbind = false,
-    wrap = false,
-  },
 }
 
 M.options = vim.deepcopy(M.defaults)
