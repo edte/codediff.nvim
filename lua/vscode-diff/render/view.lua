@@ -94,7 +94,7 @@ local function compute_and_render(original_buf, modified_buf, original_lines, mo
   end
 
   -- Setup scrollbind synchronization (only if windows provided)
-  if original_win and modified_win then
+  if original_win and modified_win and vim.api.nvim_win_is_valid(original_win) and vim.api.nvim_win_is_valid(modified_win) then
     -- Save cursor position if we need to preserve it (on update)
     local saved_cursor = nil
     if not auto_scroll_to_first_hunk then

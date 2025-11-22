@@ -61,7 +61,10 @@ describe("Explorer Mode", function()
       vim.fn.delete(temp_dir, "rf")
     end
     
-    -- Close all tabs except first
+    -- Ensure we are not in a diff session (which might be the only tab)
+    -- Create a new tab to be safe
+    vim.cmd("tabnew")
+    -- Close all other tabs (including any diff tabs)
     vim.cmd("tabonly")
   end)
 
