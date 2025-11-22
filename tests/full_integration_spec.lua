@@ -1,0 +1,152 @@
+-- Test: Full Integration
+-- Validates all supported commands documented in README.md
+
+local commands = require("vscode-diff.commands")
+
+-- Setup CodeDiff command for tests
+local function setup_command()
+  vim.api.nvim_create_user_command("CodeDiff", function(opts)
+    commands.vscode_diff(opts)
+  end, {
+    nargs = "*",
+    bang = true,
+    complete = function()
+      return { "file", "install" }
+    end,
+  })
+end
+
+describe("Full Integration Suite", function()
+  local temp_dir
+  local original_cwd
+  local commit_hash_1
+  local commit_hash_2
+
+  before_each(function()
+    -- Fix package.path which seems to be reset
+    local nui_dir = vim.fn.stdpath("data") .. "/nui.nvim"
+    nui_dir = nui_dir:gsub("\\", "/")
+    if not package.path:find(nui_dir) then
+      package.path = package.path .. ";" .. nui_dir .. "/lua/?.lua;" .. nui_dir .. "/lua/?/init.lua"
+    end
+    
+    -- Setup command
+    setup_command()
+    
+    -- Create temporary git repository for testing
+    temp_dir = vim.fn.tempname()
+    vim.fn.mkdir(temp_dir, "p")
+    
+    -- Helper to run git in temp_dir
+    local function git(args)
+      return vim.fn.system("git -C " .. temp_dir .. " " .. args)
+    end
+    
+    -- Initialize git repo
+    git("init")
+    -- Rename branch to main to be sure
+    git("branch -m main")
+    git("config user.email 'test@example.com'")
+    git("config user.name 'Test User'")
+    
+    -- Commit 1
+    vim.fn.writefile({"line 1", "line 2"}, temp_dir .. "/file.txt")
+    git("add file.txt")
+    git("commit -m 'Initial commit'")
+    commit_hash_1 = vim.trim(git("rev-parse HEAD"))
+    
+    -- Tag v1.0.0
+    git("tag v1.0.0")
+
+    -- Commit 2
+    vim.fn.writefile({"line 1", "line 2 modified"}, temp_dir .. "/file.txt")
+    git("add file.txt")
+    git("commit -m 'Second commit'")
+    commit_hash_2 = vim.trim(git("rev-parse HEAD"))
+
+    -- Create another file for file comparison
+    vim.fn.writefile({"file a content"}, temp_dir .. "/file_a.txt")
+    vim.fn.writefile({"file b content"}, temp_dir .. "/file_b.txt")
+    
+    -- Open the main file
+    vim.cmd("edit " .. temp_dir .. "/file.txt")
+  end)
+
+  after_each(function()
+    -- Clean up
+    if temp_dir and vim.fn.isdirectory(temp_dir) == 1 then
+      vim.fn.delete(temp_dir, "rf")
+    end
+    
+    -- Reset tabs
+    vim.cmd("tabnew")
+    vim.cmd("tabonly")
+  end)
+
+  -- Helper to verify explorer opened
+  local function assert_explorer_opened()
+    local opened = vim.wait(5000, function()
+      return vim.fn.tabpagenr('$') > 1
+    end)
+    assert.is_true(opened, "Should open a new tab")
+    
+    local has_explorer = false
+    vim.wait(2000, function()
+      for i = 1, vim.fn.winnr('$') do
+        local winid = vim.fn.win_getid(i)
+        local bufnr = vim.api.nvim_win_get_buf(winid)
+        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+          has_explorer = true
+          return true
+        end
+      end
+      return false
+    end)
+    assert.is_true(has_explorer, "Should have explorer window")
+  end
+
+  -- 1. Explorer Mode: Default
+  it("Runs :CodeDiff (Explorer Default)", function()
+    -- Make a change so there is something to show
+    vim.fn.writefile({"line 1", "line 2 modified", "line 3"}, temp_dir .. "/file.txt")
+    
+    vim.cmd("CodeDiff")
+    assert_explorer_opened()
+  end)
+
+  -- 2. Explorer Mode: Revision
+  it("Runs :CodeDiff HEAD~1", function()
+    vim.cmd("CodeDiff HEAD~1")
+    assert_explorer_opened()
+  end)
+
+  -- 3. Explorer Mode: Branch
+  it("Runs :CodeDiff main", function()
+    -- Create a dev branch and switch to it so main is different
+    vim.fn.system("git -C " .. temp_dir .. " reset --hard HEAD~1")
+    vim.fn.system("git -C " .. temp_dir .. " checkout -b feature")
+    vim.fn.writefile({"feature change"}, temp_dir .. "/file.txt")
+    vim.fn.system("git -C " .. temp_dir .. " commit -am 'feature commit'")
+    
+    -- Now compare against main
+    vim.cmd("CodeDiff main")
+    assert_explorer_opened()
+  end)
+
+  -- 4. Explorer Mode: Commit Hash
+  it("Runs :CodeDiff <commit_hash>", function()
+    vim.cmd("CodeDiff " .. commit_hash_1)
+    assert_explorer_opened()
+  end)
+
+  -- 11. Arbitrary Revision Diff (Explorer)
+  it("Runs :CodeDiff main HEAD", function()
+    -- Ensure there is a diff between main and HEAD
+    vim.fn.system("git -C " .. temp_dir .. " checkout HEAD~1")
+    -- Now HEAD is commit 1. main is commit 2.
+    
+    vim.cmd("CodeDiff main HEAD")
+    assert_explorer_opened()
+  end)
+
+end)
