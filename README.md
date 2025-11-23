@@ -1,8 +1,6 @@
 # vscode-diff.nvim
 
-> **⚠️ WORK IN PROGRESS**: This plugin is under active development and not ready for production use.
-
-A Neovim plugin that provides VSCode-style inline diff rendering with two-tier highlighting.
+A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-tier highlighting.
 
 ## Features
 
@@ -10,11 +8,10 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
   - Light backgrounds for entire modified lines (green for insertions, red for deletions)
   - Deep/dark character-level highlights showing exact changes within lines
 - **Side-by-side diff view** in a new tab with synchronized scrolling
-- **Git integration**: Compare current buffer with any git revision (HEAD, commits, branches, tags)
+- **Git integration**: Compare between any git revision (HEAD, commits, branches, tags)
+- **Same implementation as VSCode's diff engine**, providing identical visual highlighting for most scenarios
 - **Fast C-based diff computation** using FFI with **multi-core parallelization** (OpenMP)
 - **Async git operations** - non-blocking file retrieval from git
-- **Read-only buffers** to prevent accidental edits
-- **Aligned line rendering** with virtual filler lines
 
 ## Installation
 
@@ -29,36 +26,56 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 
 ### Using lazy.nvim
 
-**Simple installation (all platforms):**
+**Minimal installation:**
 ```lua
 {
   "esmuellert/vscode-diff.nvim",
-  dependencies = {
-    "MunifTanjim/nui.nvim",
-  },
+  dependencies = { "MunifTanjim/nui.nvim" },
+}
+```
+
+> **Note:** The plugin uses your colorscheme's `DiffAdd` and `DiffDelete` for line-level diffs, and auto-brightens them for character-level highlights (assumes dark colorscheme). For light colorschemes, adjust `char_brightness < 1.0`. See [Highlight Groups](#highlight-groups) for details.
+
+**With custom configuration:**
+```lua
+{
+  "esmuellert/vscode-diff.nvim",
+  dependencies = { "MunifTanjim/nui.nvim" },
   config = function()
-    require("vscode-diff.config").setup({
-      -- Optional configuration (defaults shown)
+    require("vscode-diff").setup({
+      -- Highlight configuration
       highlights = {
-        line_insert = "DiffAdd",
-        line_delete = "DiffDelete",
-        char_brightness = 1.4,
+        -- Line-level: accepts highlight group names or hex colors (e.g., "#2ea043")
+        line_insert = "DiffAdd",      -- Line-level insertions
+        line_delete = "DiffDelete",   -- Line-level deletions
+        
+        -- Character-level: accepts highlight group names or hex colors
+        -- If specified, these override char_brightness calculation
+        char_insert = nil,            -- Character-level insertions (nil = auto-derive)
+        char_delete = nil,            -- Character-level deletions (nil = auto-derive)
+        
+        -- Brightness multiplier (only used when char_insert/char_delete are nil)
+        char_brightness = 1.4,        -- Make character highlights 40% brighter
       },
+      
+      -- Diff view behavior
       diff = {
-        disable_inlay_hints = true,
-        max_computation_time_ms = 5000,
+        disable_inlay_hints = true,         -- Disable inlay hints in diff windows for cleaner view
+        max_computation_time_ms = 5000,     -- Maximum time for diff computation (VSCode default)
       },
+      
+      -- Keymaps in diff view
       keymaps = {
         view = {
-          next_hunk = "]c",
-          prev_hunk = "[c",
-          next_file = "]f",
-          prev_file = "[f",
+          next_hunk = "]c",   -- Jump to next change
+          prev_hunk = "[c",   -- Jump to previous change
+          next_file = "]f",   -- Next file in explorer mode
+          prev_file = "[f",   -- Previous file in explorer mode
         },
         explorer = {
-          select = "<CR>",
-          hover = "K",
-          refresh = "R",
+          select = "<CR>",    -- Open diff for selected file
+          hover = "K",        -- Show file diff preview
+          refresh = "R",      -- Refresh git status
         },
       },
     })
@@ -67,46 +84,6 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 ```
 
 The C library will be downloaded automatically on first use. No `build` step needed!
-
-### Manual Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/esmuellert/vscode-diff.nvim ~/.local/share/nvim/vscode-diff.nvim
-```
-
-2. Add to your Neovim runtime path in `init.lua`:
-```lua
-vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
-```
-
-The C library will be downloaded automatically on first use.
-
-### Building from Source (Optional)
-
-If you prefer to build the C library yourself instead of using pre-built binaries:
-
-**Linux/macOS/BSD:**
-```bash
-cd ~/.local/share/nvim/vscode-diff.nvim
-make clean && make
-```
-
-**Windows:**
-```cmd
-REM Option 1: Standalone build (no CMake needed, auto-detects MSVC/MinGW/Clang)
-build.cmd
-
-REM Option 2: CMake with Visual Studio
-cmake -B build && cmake --build build
-
-REM Option 3: CMake with MinGW
-cmake -B build -G "MinGW Makefiles" && cmake --build build
-```
-
-**Build requirements:**
-- **Linux/macOS/BSD**: GCC/Clang and Make
-- **Windows**: Visual Studio (MSVC), MinGW-w64 (GCC), or CMake
 
 ### Managing Library Installation
 
@@ -128,6 +105,50 @@ The plugin automatically manages the C library installation:
 
 **Version Management:**
 The installer reads the `VERSION` file to download the matching library version from GitHub releases. This ensures compatibility between the Lua code and C library.
+
+### Manual Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/esmuellert/vscode-diff.nvim ~/.local/share/nvim/vscode-diff.nvim
+```
+
+2. Add to your Neovim runtime path in `init.lua`:
+```lua
+vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
+```
+
+The C library will be downloaded automatically on first use.
+
+### Building from Source (Optional)
+
+If you prefer to build the C library yourself instead of using pre-built binaries:
+
+**Build requirements:**
+- **Option 1 (build.sh/build.cmd)**: C compiler (GCC/Clang/MSVC/MinGW) - auto-detected
+- **Option 2 (CMake)**: CMake 3.15+ and C compiler
+
+**Option 1: Ready-to-use build scripts (no CMake required)**
+
+Linux/macOS/BSD:
+```bash
+cd ~/.local/share/nvim/vscode-diff.nvim
+./build.sh
+```
+
+Windows:
+```cmd
+cd %LOCALAPPDATA%\nvim-data\lazy\vscode-diff.nvim
+build.cmd
+```
+
+**Option 2: CMake (for advanced users)**
+
+All platforms:
+```bash
+cmake -B build
+cmake --build build
+```
 
 ## Usage
 
@@ -200,67 +221,115 @@ Compare two arbitrary files side-by-side:
 ### Lua API
 
 ```lua
-local diff = require("vscode-diff")
+-- Primary user API - setup configuration
+require("vscode-diff").setup({
+  highlights = {
+    line_insert = "DiffAdd",
+    line_delete = "DiffDelete",
+    char_brightness = 1.4,
+  },
+})
+
+-- Advanced usage - direct access to internal modules
+local diff = require("vscode-diff.diff")
 local render = require("vscode-diff.render")
 local git = require("vscode-diff.git")
 
--- Example 1: Compare two files
-local lines_a = vim.fn.readfile("file_a.txt")
-local lines_b = vim.fn.readfile("file_b.txt")
-local plan = diff.compute_diff(lines_a, lines_b)
-render.setup_highlights()
-render.render_diff(lines_a, lines_b, plan)
+-- Example 1: Compute diff between two sets of lines
+local lines_a = {"line 1", "line 2"}
+local lines_b = {"line 1", "modified line 2"}
+local lines_diff = diff.compute_diff(lines_a, lines_b)
 
--- Example 2: Get file from git (async)
-git.get_file_at_revision("HEAD~1", "/path/to/file.lua", function(err, lines)
+-- Example 2: Get file content from git (async)
+git.get_file_content("HEAD~1", "/path/to/repo", "relative/path.lua", function(err, lines)
   if err then
     vim.notify(err, vim.log.levels.ERROR)
     return
   end
-  
   -- Use lines...
-  local current_lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-  local plan = diff.compute_diff(lines, current_lines)
-  render.render_diff(lines, current_lines, plan)
 end)
 
--- Example 3: Check if file is in git repo
-if git.is_in_git_repo("/path/to/file.lua") then
-  -- File is in a git repository
-end
+-- Example 3: Get git root for a file (async)
+git.get_git_root("/path/to/file.lua", function(err, git_root)
+  if not err then
+    -- File is in a git repository
+  end
+end)
 ```
 
 ## Architecture
 
 ### Components
 
-- **C Module** (`c-diff-core/`): Fast diff computation and render plan generation
-  - Myers diff algorithm (simplified for MVP)
-  - Character-level LCS for highlighting
+- **C Module** (`libvscode-diff/`): Fast diff computation and render plan generation
+  - Myers diff algorithm
+  - Character-level refinement for highlighting
   - Matches VSCode's `rangeMapping.ts` data structures
 
-- **Lua FFI Layer** (`lua/vscode-diff/init.lua`): Bridge between C and Lua
+- **Lua FFI Layer** (`lua/vscode-diff/diff.lua`): Bridge between C and Lua
   - FFI declarations matching C structs
   - Type conversions between C and Lua
 
-- **Render Module** (`lua/vscode-diff/render.lua`): Neovim buffer rendering
+- **Render Module** (`lua/vscode-diff/render/`): Neovim buffer rendering
   - VSCode-style highlight groups
   - Virtual line insertion for alignment
   - Side-by-side window management
+  - Git status explorer
+
+### Syntax Highlighting
+
+The plugin handles syntax highlighting differently based on buffer type:
+
+**Working files (editable):**
+- Behaves like normal buffers with standard highlighting
+- Inlay hints disabled by default (incompatible with diff highlights)
+- All LSP features available
+
+**Git history files (read-only):**
+- Virtual buffers stored in memory, discarded when tab closes
+- TreeSitter highlighting applied automatically (if installed)
+- LSP not attached (most features meaningless for historical files)
+- Semantic token highlighting fetched via LSP request when available
 
 ### Highlight Groups
 
-The plugin defines four highlight groups matching VSCode's diff colors:
+The plugin defines highlight groups matching VSCode's diff colors:
 
 - `CodeDiffLineInsert` - Light green background for inserted lines
 - `CodeDiffLineDelete` - Light red background for deleted lines
-- `CodeDiffCharInsert` - Deep/dark green for inserted characters (THE "DEEPER COLOR")
-- `CodeDiffCharDelete` - Deep/dark red for deleted characters (THE "DEEPER COLOR")
+- `CodeDiffCharInsert` - Deep/dark green for inserted characters
+- `CodeDiffCharDelete` - Deep/dark red for deleted characters
+- `CodeDiffFiller` - Gray foreground for filler line slashes (`╱╱╱`)
 
-You can customize these in your config:
+**Default behavior:**
+- Uses your colorscheme's `DiffAdd` and `DiffDelete` for line-level highlights
+- Character-level highlights are derived by multiplying brightness by `char_brightness` (default: `1.4`)
+- **Dark colorschemes**: Use `char_brightness > 1.0` to make character highlights brighter (default `1.4` = 40% brighter)
+- **Light colorschemes**: Use `char_brightness < 1.0` to make character highlights darker (e.g., `0.7` = 30% darker)
+
+**Customization examples:**
 
 ```lua
-vim.api.nvim_set_hl(0, "CodeDiffCharInsert", { bg = "#2d6d2d" })
+-- Use hex colors directly
+highlights = {
+  line_insert = "#1d3042",
+  line_delete = "#351d2b",
+  char_brightness = 1.5,
+}
+
+-- Override character colors explicitly
+highlights = {
+  line_insert = "DiffAdd",
+  line_delete = "DiffDelete",
+  char_insert = "#3fb950",
+  char_delete = "#ff7b72",
+}
+
+-- Mix highlight groups and hex colors
+highlights = {
+  line_insert = "String",
+  char_delete = "#ff0000",
+}
 ```
 
 ## Development
@@ -275,16 +344,13 @@ make clean && make
 
 Run all tests:
 ```bash
-make test              # Run all tests (C + Lua unit + E2E)
-make test-verbose      # Run all tests with verbose C core output
+make test              # Run all tests (C + Lua integration)
 ```
 
 Run specific test suites:
 ```bash
 make test-c            # C unit tests only
-make test-unit         # Lua unit tests only
-make test-e2e          # E2E tests only
-make test-e2e-verbose  # E2E tests with verbose output
+make test-lua          # Lua integration tests only
 ```
 
 For more details on the test structure, see [`tests/README.md`](tests/README.md).
@@ -293,19 +359,25 @@ For more details on the test structure, see [`tests/README.md`](tests/README.md)
 
 ```
 vscode-diff.nvim/
-├── c-diff-core/          # C diff engine
-│   ├── diff_core.c       # Implementation
-│   ├── diff_core.h       # Header
-│   └── test_diff_core.c  # C unit tests
+├── libvscode-diff/       # C diff engine
+│   ├── src/              # C implementation
+│   ├── include/          # C headers
+│   └── tests/            # C unit tests
 ├── lua/vscode-diff/      # Lua modules
-│   ├── init.lua          # Main FFI interface
+│   ├── init.lua          # Main API
 │   ├── config.lua        # Configuration
-│   └── render.lua        # Buffer rendering
+│   ├── diff.lua          # FFI interface
+│   ├── git.lua           # Git operations
+│   ├── commands.lua      # Command handlers
+│   ├── installer.lua     # Binary installer
+│   └── render/           # Rendering modules
+│       ├── core.lua      # Diff rendering
+│       ├── view.lua      # View management
+│       ├── explorer.lua  # Git status explorer
+│       └── highlights.lua # Highlight setup
 ├── plugin/               # Plugin entry point
 │   └── vscode-diff.lua   # Auto-loaded on startup
-├── tests/                # Test suite
-│   ├── unit/             # Lua unit tests
-│   ├── e2e/              # End-to-end tests
+├── tests/                # Test suite (plenary.nvim)
 │   └── README.md         # Test documentation
 ├── docs/                 # Production docs
 ├── dev-docs/             # Development docs
@@ -315,27 +387,23 @@ vscode-diff.nvim/
 
 ## Roadmap
 
-### Current Status: MVP Complete ✅
+### Current Status: Complete ✅
 
-- [x] C-based diff computation
+- [x] C-based diff computation with VSCode-identical algorithm
 - [x] Two-tier highlighting (line + character level)
-- [x] Side-by-side rendering
-- [x] Read-only buffers
-- [x] Line alignment with filler lines
-- [x] Lua FFI bindings
-- [x] Basic tests (C, Lua, E2E)
+- [x] Side-by-side view with synchronized scrolling
+- [x] Git integration (async operations, status explorer, revision comparison)
+- [x] Auto-refresh on buffer changes (live diff updates)
+- [x] Syntax highlighting preservation (LSP semantic tokens + TreeSitter)
+- [x] Read-only buffers with virtual filler lines for alignment
+- [x] Flexible highlight configuration (colorscheme-aware)
+- [x] Integration tests (C + Lua with plenary.nvim)
 
 ### Future Enhancements
 
-- [ ] Full Myers diff algorithm implementation
-- [ ] Advanced character-level LCS
-- [ ] Live diff updates on buffer changes
-- [ ] Inline diff mode (single buffer)
-- [ ] Syntax highlighting preservation
+- [ ] Inline diff mode (single buffer view)
 - [ ] Fold support for large diffs
-- [ ] Performance optimization for large files
-- [ ] Git integration
-- [ ] Custom color schemes
+- [ ] Performance optimization for very large files (10,000+ lines)
 
 ## VSCode Reference
 

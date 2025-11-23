@@ -4,12 +4,17 @@ local M = {}
 M.defaults = {
   -- Highlight configuration
   highlights = {
-    -- Base highlight groups to derive colors from
+    -- Line-level highlights: accepts highlight group names (e.g., "DiffAdd") or color values (e.g., "#2ea043")
     line_insert = "DiffAdd",      -- Line-level insertions (base color)
     line_delete = "DiffDelete",   -- Line-level deletions (base color)
 
-    -- Character-level highlights use brighter versions of line highlights
-    char_brightness = 1.4,  -- Multiplier for character backgrounds (1.3 = 130% = brighter)
+    -- Character-level highlights: accepts highlight group names or color values
+    -- If specified, these override char_brightness calculation
+    char_insert = nil,  -- Character-level insertions (if nil, derived from line_insert with char_brightness)
+    char_delete = nil,  -- Character-level deletions (if nil, derived from line_delete with char_brightness)
+
+    -- Brightness multiplier for character-level highlights (only used if char_insert/char_delete are nil)
+    char_brightness = 1.4,  -- Multiplier for character backgrounds (1.4 = 140% = brighter)
   },
 
   -- Diff view behavior

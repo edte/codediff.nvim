@@ -83,13 +83,16 @@ local function get_current_version()
 end
 
 -- Get installed library version by checking existing versioned files
+-- Returns the latest version if multiple libraries exist
 local function get_installed_version()
   local plugin_root = get_plugin_root()
   local ext = get_lib_ext()
   -- Escape the dot in the extension for pattern matching
   local pattern = "libvscode_diff_(.+)%." .. ext
   
-  -- List files in plugin root and find versioned library
+  local versions = {}
+  
+  -- List files in plugin root and find all versioned libraries
   local handle = vim.loop.fs_scandir(plugin_root)
   if handle then
     while true do
@@ -99,10 +102,29 @@ local function get_installed_version()
       if type == "file" then
         local version = name:match(pattern)
         if version then
-          return version
+          table.insert(versions, version)
         end
       end
     end
+  end
+  
+  -- Return the latest version if any found
+  if #versions > 0 then
+    table.sort(versions, function(a, b)
+      -- Parse semantic versions (e.g., "0.11.1")
+      local a_parts = vim.split(a, "%.")
+      local b_parts = vim.split(b, "%.")
+      
+      for i = 1, math.max(#a_parts, #b_parts) do
+        local a_num = tonumber(a_parts[i]) or 0
+        local b_num = tonumber(b_parts[i]) or 0
+        if a_num ~= b_num then
+          return a_num > b_num
+        end
+      end
+      return false
+    end)
+    return versions[1]
   end
   
   return nil

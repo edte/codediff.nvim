@@ -21,33 +21,83 @@ local function adjust_brightness(color, factor)
   return r * 65536 + g * 256 + b
 end
 
+-- Resolve color from config value (supports highlight group name or direct color)
+-- Returns a table suitable for nvim_set_hl (e.g., { bg = 0x2ea043 })
+local function resolve_color(value, default_fallback)
+  if not value then
+    return { bg = default_fallback }
+  end
+
+  -- If it's a string, check if it's a hex color or highlight group name
+  if type(value) == "string" then
+    -- Check if it's a hex color (#RRGGBB or #RGB)
+    if value:match("^#%x%x%x%x%x%x$") then
+      -- #RRGGBB format
+      local r = tonumber(value:sub(2, 3), 16)
+      local g = tonumber(value:sub(4, 5), 16)
+      local b = tonumber(value:sub(6, 7), 16)
+      return { bg = r * 65536 + g * 256 + b }
+    elseif value:match("^#%x%x%x$") then
+      -- #RGB format - expand to #RRGGBB
+      local r = tonumber(value:sub(2, 2), 16) * 17
+      local g = tonumber(value:sub(3, 3), 16) * 17
+      local b = tonumber(value:sub(4, 4), 16) * 17
+      return { bg = r * 65536 + g * 256 + b }
+    else
+      -- Assume it's a highlight group name
+      local hl = vim.api.nvim_get_hl(0, { name = value })
+      return { bg = hl.bg or default_fallback }
+    end
+  elseif type(value) == "number" then
+    -- Direct color number (e.g., 0x2ea043)
+    return { bg = value }
+  end
+
+  return { bg = default_fallback }
+end
+
 -- Setup VSCode-style highlight groups
 function M.setup()
-  -- Get base highlight colors from config
-  local line_insert_hl = vim.api.nvim_get_hl(0, { name = config.options.highlights.line_insert })
-  local line_delete_hl = vim.api.nvim_get_hl(0, { name = config.options.highlights.line_delete })
-  local char_brightness = config.options.highlights.char_brightness
+  local opts = config.options.highlights
 
-  -- Line-level highlights: Use base colors directly (DiffAdd, DiffDelete)
+  -- Line-level highlights
+  local line_insert_color = resolve_color(opts.line_insert, 0x1d3042)
+  local line_delete_color = resolve_color(opts.line_delete, 0x351d2b)
+
   vim.api.nvim_set_hl(0, "CodeDiffLineInsert", {
-    bg = line_insert_hl.bg or 0x1d3042,  -- Fallback to default green
-    default = true,
+    bg = line_insert_color.bg,
   })
 
   vim.api.nvim_set_hl(0, "CodeDiffLineDelete", {
-    bg = line_delete_hl.bg or 0x351d2b,  -- Fallback to default red
-    default = true,
+    bg = line_delete_color.bg,
   })
 
-  -- Character-level highlights: Brighter versions of line highlights
+  -- Character-level highlights: use explicit values if provided, otherwise derive from line highlights
+  local char_insert_bg
+  local char_delete_bg
+
+  if opts.char_insert then
+    -- Explicit char_insert provided - use it directly
+    char_insert_bg = resolve_color(opts.char_insert, 0x2a4556).bg
+  else
+    -- Derive from line_insert with brightness adjustment
+    char_insert_bg = adjust_brightness(line_insert_color.bg, opts.char_brightness) or 0x2a4556
+  end
+
+  if opts.char_delete then
+    -- Explicit char_delete provided - use it directly
+    char_delete_bg = resolve_color(opts.char_delete, 0x4b2a3d).bg
+  else
+    -- Derive from line_delete with brightness adjustment
+    char_delete_bg = adjust_brightness(line_delete_color.bg, opts.char_brightness) or 0x4b2a3d
+  end
+
   vim.api.nvim_set_hl(0, "CodeDiffCharInsert", {
-    bg = adjust_brightness(line_insert_hl.bg, char_brightness) or 0x2a4556,  -- Brighter green
-    default = true,
+    bg = char_insert_bg,
   })
 
   vim.api.nvim_set_hl(0, "CodeDiffCharDelete", {
-    bg = adjust_brightness(line_delete_hl.bg, char_brightness) or 0x4b2a3d,  -- Brighter red
-    default = true,
+    bg = char_delete_bg,
   })
 
   -- Filler lines (no highlight, inherits editor default background)
