@@ -403,7 +403,6 @@ vscode-diff.nvim/
 
 - [ ] Inline diff mode (single buffer view)
 - [ ] Fold support for large diffs
-- [ ] Performance optimization for very large files (10,000+ lines)
 
 ## VSCode Reference
 
