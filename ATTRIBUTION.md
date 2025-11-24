@@ -315,6 +315,40 @@ The following projects inspired architectural decisions but no code was copied:
 
 ---
 
+## Documentation Assets
+
+Colorschemes used in documentation screenshots:
+
+### Tokyo Night
+
+**Author**: folke  
+**License**: Apache License 2.0  
+**Source**: https://github.com/folke/tokyonight.nvim  
+**Usage**: Hero image (Tokyo Night Moon variant)
+
+### Dawnfox
+
+**Author**: EdenEast  
+**License**: MIT License  
+**Source**: https://github.com/EdenEast/nightfox.nvim  
+**Usage**: Highlight groups visual example (Dawnfox Light variant)
+
+### Catppuccin
+
+**Author**: Catppuccin Community  
+**License**: MIT License  
+**Source**: https://github.com/catppuccin/nvim  
+**Usage**: Highlight groups visual example (Mocha variant)
+
+### Kanagawa
+
+**Author**: rebelot  
+**License**: MIT License  
+**Source**: https://github.com/rebelot/kanagawa.nvim  
+**Usage**: Highlight groups visual example (Lotus variant)
+
+---
+
 ## Acknowledgments
 
 We would like to thank:
@@ -324,6 +358,7 @@ We would like to thank:
 - **The JuliaStrings project** and utf8proc contributors for providing a robust Unicode processing library
 - **Tim Pope** (vim-fugitive) for pioneering the virtual file URL pattern
 - **The Neovim community** for creating the plugin ecosystem and supporting libraries
+- **Colorscheme authors** (folke, EdenEast, Catppuccin Community, rebelot) for their beautiful themes used in our documentation
 - All contributors to the dependencies and inspirations listed above
 
 ---
