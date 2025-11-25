@@ -76,14 +76,10 @@ jobs:
 
       - name: Commit version bump
         if: steps.check_existing_tag.outputs.exists == 'true'
-        uses: github-actions-x/commit@v2.9
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          push-branch: 'main'
-          commit-message: 'chore: bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]'
-          files: VERSION
-          name: github-actions[bot]
-          email: github-actions[bot]@users.noreply.github.com
+        run: |
+          git add VERSION
+          git commit -m "chore: bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]"
+          git push origin main
 
       - name: Get final version
         id: get_version
