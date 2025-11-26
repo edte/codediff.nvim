@@ -344,9 +344,8 @@ function M.create(session_config, filetype)
   end
 
   -- Window options (scrollbind will be set by compute_and_render)
+  -- Note: number and relativenumber are intentionally NOT set to honor user's local config
   local win_opts = {
-    number = true,
-    relativenumber = false,
     cursorline = true,
     wrap = false,
   }
