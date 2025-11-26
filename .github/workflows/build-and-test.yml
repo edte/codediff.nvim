@@ -125,25 +125,15 @@ jobs:
             centos:7 \
             bash -c "
               set -e
-              # CentOS 7 is EOL, use vault archives
-              # Detect architecture for correct vault path (altarch for aarch64)
-              ARCH=\$(uname -m)
-              if [ \"\$ARCH\" = \"aarch64\" ]; then
-                VAULT_PATH=\"altarch\"
-              else
-                VAULT_PATH=\"centos\"
-              fi
-              sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*.repo
-              sed -i \"s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org/\$VAULT_PATH|g\" /etc/yum.repos.d/CentOS-*.repo
+              # CentOS 7 is EOL, use vault archives (following c-ares approach)
+              sed -i -e 's/^mirrorlist/#mirrorlist/' -e 's/^#baseurl/baseurl/' -e 's/mirror.centos.org/vault.centos.org/' /etc/yum.repos.d/*.repo
+              yum clean all
               yum install -y epel-release
               yum install -y centos-release-scl
-              # Delete problematic centos-sclo-sclo repo (not needed for devtoolset-11)
+              # Delete problematic centos-sclo-sclo repo (from Apache Gluten approach)
               rm -f /etc/yum.repos.d/CentOS-SCLo-scl.repo
-              # Fix SCL-RH repo with correct architecture path
-              sed -i -e 's/^mirrorlist/#mirrorlist/' \
-                     -e 's/^#baseurl/baseurl/' \
-                     -e \"s|mirror\.centos\.org|vault.centos.org/\$VAULT_PATH|\" \
-                     /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+              # Fix SCL-RH repo
+              sed -i -e 's/^mirrorlist/#mirrorlist/' -e 's/^#baseurl/baseurl/' -e 's/mirror\.centos\.org/vault.centos.org/' /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
               yum install -y devtoolset-11-gcc devtoolset-11-gcc-c++ cmake3 make
               source /opt/rh/devtoolset-11/enable
               ln -s /usr/bin/cmake3 /usr/local/bin/cmake
