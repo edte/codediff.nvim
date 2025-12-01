@@ -204,62 +204,67 @@ describe("Installer Module", function()
 
   -- Test: libgomp detection on Linux
   describe("libgomp dependency handling", function()
-    it("check_system_libgomp detects library correctly on Linux", function()
+    it("check_system_libgomp detects library via ldconfig on Linux", function()
       local ffi = require("ffi")
-      
+
       -- Only test on Linux
       if ffi.os ~= "Linux" then
         pending("libgomp only needed on Linux")
         return
       end
-      
-      -- Try to detect libgomp
-      local has_libgomp = pcall(function()
-        local _ = ffi.load("libgomp.so.1")
-      end)
-      
-      -- This should match what the installer detects
+
+      -- Check ldconfig cache (same method as installer uses)
+      local handle = io.popen("ldconfig -p 2>/dev/null | grep -q 'libgomp\\.so\\.1' && echo 'found'")
+      local has_libgomp = false
+      if handle then
+        local result = handle:read("*a")
+        handle:close()
+        has_libgomp = result:match("found") ~= nil
+      end
+
       assert.equal("boolean", type(has_libgomp), "Detection should return boolean")
-      
+
       if has_libgomp then
-        print("  ✓ System has libgomp.so.1")
+        print("  ✓ System has libgomp.so.1 in ldconfig cache")
       else
-        print("  ✗ System missing libgomp.so.1 (installer will attempt download)")
+        print("  ✗ System missing libgomp.so.1 in ldconfig (installer will bundle)")
       end
     end)
-    
-    it("libgomp detection uses correct library name", function()
+
+    it("ldconfig detection matches native linker behavior", function()
       local ffi = require("ffi")
-      
+
       if ffi.os ~= "Linux" then
         pending("libgomp only needed on Linux")
         return
       end
-      
-      -- Test that we use the correct library name
-      local wrong_name = pcall(function()
-        local _ = ffi.load("gomp", true)
-      end)
-      
-      local correct_name = pcall(function()
-        local _ = ffi.load("libgomp.so.1")
-      end)
-      
-      -- If system has libgomp, correct name should work better
-      if correct_name then
-        assert.is_true(correct_name, "Correct library name should work")
-        print("  ✓ Using correct library name: libgomp.so.1")
+
+      -- Check ldconfig
+      local handle = io.popen("ldconfig -p 2>/dev/null | grep 'libgomp\\.so\\.1'")
+      local ldconfig_path = nil
+      if handle then
+        local result = handle:read("*a")
+        handle:close()
+        ldconfig_path = result:match("=> ([^\n]+)")
+      end
+
+      if ldconfig_path then
+        -- Verify the path actually exists
+        assert.equal(1, vim.fn.filereadable(ldconfig_path), "ldconfig path should be readable")
+        print("  ✓ ldconfig reports: " .. ldconfig_path)
+      else
+        print("  ✗ libgomp not in ldconfig cache")
       end
     end)
-    
+
     it("skips libgomp check on non-Linux systems", function()
       local ffi = require("ffi")
-      
+
       if ffi.os == "Linux" then
         pending("This test is for non-Linux systems")
         return
       end
-      
+
       -- On macOS/Windows, libgomp is not needed
       -- Installer should return true without checking
       print(string.format("  ✓ Skipping libgomp on %s (not needed)", ffi.os))
