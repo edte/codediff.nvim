@@ -104,8 +104,13 @@ local function do_diff_update(bufnr)
       
       -- Only resync if user is in one of the diff windows
       if current_win == original_win or current_win == modified_win then
-        -- Step 1: Save full view state (cursor + scroll position) to preserve screen layout
+        local other_win = current_win == original_win and modified_win or original_win
+        
+        -- Step 1: Save full view state for BOTH windows to prevent flicker
         local saved_view = vim.fn.winsaveview()
+        vim.api.nvim_set_current_win(other_win)
+        local other_saved_view = vim.fn.winsaveview()
+        vim.api.nvim_set_current_win(current_win)
         
         -- Step 2: Reset both windows to line 1 (baseline for scrollbind)
         vim.api.nvim_win_set_cursor(original_win, {1, 0})
@@ -117,7 +122,10 @@ local function do_diff_update(bufnr)
         vim.wo[original_win].scrollbind = true
         vim.wo[modified_win].scrollbind = true
         
-        -- Step 4: Restore full view state (cursor + topline) to maintain screen position
+        -- Step 4: Restore full view state for BOTH windows
+        vim.api.nvim_set_current_win(other_win)
+        vim.fn.winrestview(other_saved_view)
+        vim.api.nvim_set_current_win(current_win)
         vim.fn.winrestview(saved_view)
       end
     end
