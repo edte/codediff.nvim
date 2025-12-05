@@ -369,4 +369,61 @@ function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, 
   }
 end
 
+-- ============================================================================
+-- Single Buffer Rendering (for merge view)
+-- ============================================================================
+
+-- Render diff highlights for a single buffer
+-- Used in merge view where each buffer shows diff against base independently
+-- bufnr: buffer number to render
+-- diff: the diff result (same format as lines_diff from compute_diff)
+-- side: "original" or "modified" - which side of the diff this buffer represents
+--       "original" = deletions (red highlights)
+--       "modified" = insertions (green highlights)
+function M.render_single_buffer(bufnr, diff, side)
+  -- Clear existing highlights
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_highlight, 0, -1)
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_filler, 0, -1)
+
+  -- Get buffer lines for character highlight calculations
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+  -- Determine highlight groups based on side
+  local line_hl, char_hl
+  if side == "original" then
+    line_hl = "CodeDiffLineDelete"
+    char_hl = "CodeDiffCharDelete"
+  else
+    line_hl = "CodeDiffLineInsert"
+    char_hl = "CodeDiffCharInsert"
+  end
+
+  for _, mapping in ipairs(diff.changes) do
+    -- Get the range for our side
+    local range = mapping[side]
+    if not range then
+      goto continue
+    end
+
+    local is_empty = (range.end_line <= range.start_line)
+
+    -- Apply line highlights
+    if not is_empty then
+      apply_line_highlights(bufnr, range, line_hl)
+    end
+
+    -- Apply character highlights from inner changes
+    if mapping.inner_changes then
+      for _, inner in ipairs(mapping.inner_changes) do
+        local inner_range = inner[side]
+        if inner_range and not is_empty_range(inner_range) then
+          apply_char_highlight(bufnr, inner_range, char_hl, lines)
+        end
+      end
+    end
+
+    ::continue::
+  end
+end
+
 return M
