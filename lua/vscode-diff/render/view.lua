@@ -766,11 +766,9 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
       local base_revision = ":1"
       
       git.get_file_content(base_revision, session_config.git_root, session_config.original_path, function(err, base_lines)
+        -- For add/add conflicts (AA), there's no base version - use empty base
         if err then
-          vim.schedule(function()
-            vim.notify("Failed to get base content: " .. err, vim.log.levels.ERROR)
-          end)
-          return
+          base_lines = {}
         end
         
         vim.schedule(function()
@@ -793,6 +791,9 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
               vim.api.nvim_buf_get_changedtick(original_info.bufnr),
               vim.api.nvim_buf_get_changedtick(modified_info.bufnr)
             )
+
+            -- Setup auto-refresh for consistency (both buffers are virtual in conflict mode)
+            setup_auto_refresh(original_info.bufnr, modified_info.bufnr, true, true)
 
             -- Setup all keymaps in one place (centralized)
             local is_explorer_mode = session.mode == "explorer"

@@ -11,6 +11,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Create secure temporary directory
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -52,10 +56,10 @@ extract_conflict() {
         exit 1
     fi
     
-    # Extract three versions
-    BASE_FILE="/tmp/merge_test_base.txt"
-    INPUT1_FILE="/tmp/merge_test_current.txt"
-    INPUT2_FILE="/tmp/merge_test_incoming.txt"
+    # Extract three versions to secure temp directory
+    BASE_FILE="$TEMP_DIR/base.txt"
+    INPUT1_FILE="$TEMP_DIR/current.txt"
+    INPUT2_FILE="$TEMP_DIR/incoming.txt"
     
     git show ":1:$rel_path" > "$BASE_FILE" 2>/dev/null || { echo -e "${RED}Failed to extract base version${NC}"; exit 1; }
     git show ":2:$rel_path" > "$INPUT1_FILE" 2>/dev/null || { echo -e "${RED}Failed to extract current version${NC}"; exit 1; }
@@ -114,10 +118,9 @@ echo "  Input1:   $INPUT1_FILE ($(wc -l < "$INPUT1_FILE") lines)"
 echo "  Input2:   $INPUT2_FILE ($(wc -l < "$INPUT2_FILE") lines)"
 echo ""
 
-# Output files
-VSCODE_OUTPUT="/tmp/merge_vscode_output.json"
-LUA_OUTPUT="/tmp/merge_lua_output.json"
-DIFF_OUTPUT="/tmp/merge_comparison_diff.txt"
+# Output files in secure temp directory
+VSCODE_OUTPUT="$TEMP_DIR/vscode_output.json"
+LUA_OUTPUT="$TEMP_DIR/lua_output.json"
 
 # Run VSCode implementation
 echo -e "${CYAN}Running VSCode implementation...${NC}"
@@ -223,14 +226,14 @@ echo ""
 
 # Create normalized versions for comparison
 echo -e "${CYAN}Comparing fillers (normalized):${NC}"
-jq -S '.fillers' "$VSCODE_OUTPUT" > /tmp/vscode_fillers.json
-jq -S '.fillers' "$LUA_OUTPUT" > /tmp/lua_fillers.json
+jq -S '.fillers' "$VSCODE_OUTPUT" > "$TEMP_DIR/vscode_fillers.json"
+jq -S '.fillers' "$LUA_OUTPUT" > "$TEMP_DIR/lua_fillers.json"
 
-if diff -q /tmp/vscode_fillers.json /tmp/lua_fillers.json > /dev/null 2>&1; then
+if diff -q "$TEMP_DIR/vscode_fillers.json" "$TEMP_DIR/lua_fillers.json" > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Fillers are IDENTICAL${NC}"
 else
     echo -e "${YELLOW}✗ Fillers DIFFER:${NC}"
-    diff --color=always /tmp/vscode_fillers.json /tmp/lua_fillers.json | head -50 || true
+    diff --color=always "$TEMP_DIR/vscode_fillers.json" "$TEMP_DIR/lua_fillers.json" | head -50 || true
 fi
 
 echo ""
@@ -238,10 +241,9 @@ echo "════════════════════════�
 echo "                         OUTPUT FILES"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
-echo "VSCode output: $VSCODE_OUTPUT"
-echo "Lua output:    $LUA_OUTPUT"
+echo "Temp directory: $TEMP_DIR (cleaned up on exit)"
 echo ""
-echo "To view full outputs:"
-echo "  jq . $VSCODE_OUTPUT"
-echo "  jq . $LUA_OUTPUT"
+echo "To view outputs before exit, check:"
+echo "  $VSCODE_OUTPUT"
+echo "  $LUA_OUTPUT"
 echo ""

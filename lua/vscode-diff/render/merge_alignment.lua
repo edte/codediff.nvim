@@ -204,20 +204,6 @@ local function get_alignments(base_start, base_end, input1_start, input1_end, in
   return filtered
 end
 
--- Extract inner diffs that fall within a base range
-local function get_inner_diffs_for_range(diff_changes, base_start, base_end)
-  local result = {}
-  for _, change in ipairs(diff_changes or {}) do
-    if change.original.start_line < base_end and change.original.end_line > base_start then
-      -- This change overlaps with our range
-      for _, inner in ipairs(change.inner_changes or {}) do
-        table.insert(result, inner)
-      end
-    end
-  end
-  return result
-end
-
 -- Exact port of VSCode's MappingAlignment.compute
 -- Takes changes from base->input1 and base->input2, returns aligned groups
 local function compute_mapping_alignments(changes1, changes2)
