@@ -126,10 +126,16 @@ local function suspend_diff(tabpage)
   local auto_refresh = require('vscode-diff.auto_refresh')
   auto_refresh.disable(diff.original_bufnr)
   auto_refresh.disable(diff.modified_bufnr)
+  if diff.result_bufnr then
+    auto_refresh.disable_result(diff.result_bufnr)
+  end
 
   -- Clear highlights from both buffers
   clear_buffer_highlights(diff.original_bufnr)
   clear_buffer_highlights(diff.modified_bufnr)
+  if diff.result_bufnr then
+    clear_buffer_highlights(diff.result_bufnr)
+  end
 
   -- Mark as suspended
   diff.suspended = true
@@ -243,6 +249,11 @@ local function resume_diff(tabpage)
 
   if modified_is_real then
     auto_refresh.enable(diff.modified_bufnr)
+  end
+
+  -- Re-enable auto-refresh for result buffer if in conflict mode
+  if diff.result_bufnr and vim.api.nvim_buf_is_valid(diff.result_bufnr) and diff.result_base_lines then
+    auto_refresh.enable_for_result(diff.result_bufnr)
   end
 
   -- Mark as active
@@ -778,6 +789,20 @@ function M.set_result(tabpage, result_bufnr, result_win)
   end
 
   return true
+end
+
+--- Store BASE lines for result buffer diff (for conflict mode)
+function M.set_result_base_lines(tabpage, base_lines)
+  local session = active_diffs[tabpage]
+  if not session then return false end
+  session.result_base_lines = base_lines
+  return true
+end
+
+--- Get BASE lines for result buffer diff
+function M.get_result_base_lines(tabpage)
+  local session = active_diffs[tabpage]
+  return session and session.result_base_lines
 end
 
 --- Get result buffer and window

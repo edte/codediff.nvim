@@ -872,8 +872,14 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
             -- Update lifecycle with result buffer/window
             lifecycle.set_result(tabpage, result_bufnr, result_win)
 
+            -- Store BASE lines for result buffer diff (used on resume)
+            lifecycle.set_result_base_lines(tabpage, base_lines)
+
             -- Track this file for unsaved warning on close
             lifecycle.track_conflict_file(tabpage, abs_path)
+
+            -- Enable auto-refresh for result buffer (diff against BASE in lifecycle)
+            auto_refresh.enable_for_result(result_bufnr)
 
             -- Setup all keymaps (now that result buffer is registered in lifecycle)
             local is_explorer_mode = session.mode == "explorer"
