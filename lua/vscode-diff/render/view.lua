@@ -895,6 +895,7 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
 
             -- Setup conflict-specific keymaps
             local conflict_actions = require('vscode-diff.render.conflict_actions')
+            conflict_actions.initialize_tracking(result_bufnr, conflict_diffs.conflict_blocks)
             conflict_actions.setup_keymaps(tabpage)
 
             -- Return focus to modified window (current/ours side)
