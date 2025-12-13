@@ -613,12 +613,13 @@ end
 -- PUBLIC API - GETTERS (return copies/values, safe)
 -- ============================================================================
 
---- Get full session (deep copy for debugging)
+--- Get session
+--- @param tabpage number
+--- @return table|nil
 function M.get_session(tabpage)
-  local session = active_diffs[tabpage]
-  if not session then return nil end
-  return vim.deepcopy(session)
+  return active_diffs[tabpage]
 end
+
 
 --- Get mode
 function M.get_mode(tabpage)
