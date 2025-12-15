@@ -28,11 +28,11 @@ local function complete_codediff(arg_lead, cmd_line, cursor_pos)
   
   -- If no args or just ":CodeDiff", suggest subcommands and common revisions
   if #args <= 1 then
-    return { "file", "install", "HEAD", "HEAD~1", "main", "master" }
+    return { "merge", "file", "install", "HEAD", "HEAD~1", "main", "master" }
   end
   
-  -- If first arg is "file", complete with file paths for remaining args
-  if args[2] == "file" then
+  -- If first arg is "merge" or "file", complete with file paths
+  if args[2] == "merge" or args[2] == "file" then
     return vim.fn.getcompletion(arg_lead, "file")
   end
   
@@ -44,12 +44,5 @@ vim.api.nvim_create_user_command("CodeDiff", commands.vscode_diff, {
   nargs = "*",
   bang = true,
   complete = complete_codediff,
-  desc = "VSCode-style diff view: :CodeDiff [<revision>] | file <revision> | file <file_a> <file_b> | install"
-})
-
--- Register merge tool command
-vim.api.nvim_create_user_command("CodeMerge", commands.vscode_merge, {
-  nargs = 1,
-  complete = "file",
-  desc = "VSCode-style merge conflict tool: :CodeMerge <filename>"
+  desc = "VSCode-style diff view: :CodeDiff [<revision>] | merge <file> | file <revision> | install"
 })

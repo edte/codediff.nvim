@@ -228,6 +228,106 @@ local function setup_auto_refresh(original_buf, modified_buf, original_is_virtua
   end
 end
 
+-- Common logic: Setup conflict result window at bottom
+-- Creates the result window layout and loads the real file with BASE content
+-- @param tabpage number: Current tabpage
+-- @param session_config SessionConfig: Session configuration
+-- @param original_win number: Original (left) window
+-- @param modified_win number: Modified (right) window  
+-- @param base_lines table: BASE content lines
+-- @param conflict_diffs table: Conflict diff results
+-- @param is_update boolean: true if updating existing view (may reuse result window)
+-- @return boolean: success
+local function setup_conflict_result_window(tabpage, session_config, original_win, modified_win, base_lines, conflict_diffs, is_update)
+  local abs_path = session_config.git_root .. "/" .. session_config.original_path
+  local result_win, result_bufnr
+
+  -- Check if result window already exists (only in update mode)
+  if is_update then
+    local existing_result_bufnr, existing_result_win = lifecycle.get_result(tabpage)
+    if existing_result_win and vim.api.nvim_win_is_valid(existing_result_win) then
+      result_win = existing_result_win
+      vim.api.nvim_set_current_win(result_win)
+    end
+  end
+
+  -- Create result window if it doesn't exist
+  if not result_win then
+    if vim.api.nvim_win_is_valid(modified_win) then
+      vim.api.nvim_set_current_win(modified_win)
+    end
+    vim.cmd("belowright split")
+    result_win = vim.api.nvim_get_current_win()
+
+    -- Move original window to be a vertical split with modified
+    vim.fn.win_splitmove(original_win, modified_win, { vertical = true, rightbelow = false })
+
+    -- Set result window height (30% of available height or minimum 10 lines)
+    local total_height = vim.o.lines
+    local result_height = math.max(10, math.floor(total_height * 0.3))
+    vim.api.nvim_win_set_height(result_win, result_height)
+  end
+
+  -- Load real file buffer in result window
+  -- Use silent and swapfile handling to avoid prompts
+  local old_shortmess = vim.o.shortmess
+  vim.o.shortmess = old_shortmess .. 'A'
+  local ok, err = pcall(vim.cmd, "silent edit " .. vim.fn.fnameescape(abs_path))
+  vim.o.shortmess = old_shortmess
+
+  if not ok then
+    vim.notify("Failed to open result file: " .. tostring(err), vim.log.levels.ERROR)
+    return false
+  end
+
+  result_bufnr = vim.api.nvim_get_current_buf()
+
+  -- Reset buffer content to BASE (only if buffer has conflict markers)
+  local current_content = vim.api.nvim_buf_get_lines(result_bufnr, 0, -1, false)
+  local has_conflict_markers = false
+  for _, line in ipairs(current_content) do
+    if line:match("^<<<<<<<") or line:match("^=======") or line:match("^>>>>>>>") then
+      has_conflict_markers = true
+      break
+    end
+  end
+
+  if has_conflict_markers then
+    vim.api.nvim_buf_set_lines(result_bufnr, 0, -1, false, base_lines)
+    vim.bo[result_bufnr].modified = true
+  end
+
+  -- Set window options for result
+  vim.wo[result_win].wrap = false
+  vim.wo[result_win].cursorline = true
+  vim.wo[result_win].winbar = ""
+
+  -- Enable scrollbind for result window
+  vim.api.nvim_win_set_cursor(result_win, {1, 0})
+  vim.wo[result_win].scrollbind = true
+
+  -- Update lifecycle with result buffer/window
+  lifecycle.set_result(tabpage, result_bufnr, result_win)
+  lifecycle.set_result_base_lines(tabpage, base_lines)
+  lifecycle.set_conflict_blocks(tabpage, conflict_diffs.conflict_blocks)
+  lifecycle.track_conflict_file(tabpage, abs_path)
+
+  -- Enable auto-refresh for result buffer
+  auto_refresh.enable_for_result(result_bufnr)
+
+  -- Setup conflict-specific keymaps
+  local conflict_actions = require('vscode-diff.render.conflict_actions')
+  conflict_actions.initialize_tracking(result_bufnr, conflict_diffs.conflict_blocks)
+  conflict_actions.setup_keymaps(tabpage)
+
+  -- Return focus to modified window
+  if vim.api.nvim_win_is_valid(modified_win) then
+    vim.api.nvim_set_current_win(modified_win)
+  end
+
+  return true
+end
+
 -- Centralized keymap setup for all diff view keymaps
 -- This function sets up ALL keymaps in one place for better maintainability
 local function setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explorer_mode)
@@ -369,8 +469,9 @@ end
 
 ---@param session_config SessionConfig Session configuration
 ---@param filetype? string Optional filetype for syntax highlighting
+---@param on_ready? function Optional callback when view is fully ready (for sync callers)
 ---@return table|nil Result containing diff metadata, or nil if deferred
-function M.create(session_config, filetype)
+function M.create(session_config, filetype, on_ready)
   -- Create new tab (both modes create a tab)
   vim.cmd("tabnew")
 
@@ -485,40 +586,96 @@ function M.create(session_config, filetype)
       -- Always read from buffers (single source of truth)
       local original_lines = vim.api.nvim_buf_get_lines(original_info.bufnr, 0, -1, false)
       local modified_lines = vim.api.nvim_buf_get_lines(modified_info.bufnr, 0, -1, false)
-      
-      local lines_diff = compute_and_render(
-        original_info.bufnr, modified_info.bufnr,
-        original_lines, modified_lines,
-        original_is_virtual, modified_is_virtual,
-        original_win, modified_win,
-        true  -- auto_scroll_to_first_hunk = true on create
-      )
 
-      if lines_diff then
-        -- Create complete lifecycle session (one step!)
-        lifecycle.create_session(
-          tabpage,
-          session_config.mode,
-          session_config.git_root,
-          session_config.original_path,
-          session_config.modified_path,
-          session_config.original_revision,
-          session_config.modified_revision,
-          original_info.bufnr,
-          modified_info.bufnr,
-          original_win,
-          modified_win,
-          lines_diff
+      if session_config.conflict then
+        -- Conflict mode: Fetch base content and render both sides against base
+        local git = require('vscode-diff.git')
+        local base_revision = ":1"
+
+        git.get_file_content(base_revision, session_config.git_root, session_config.original_path, function(err, base_lines)
+          -- For add/add conflicts (AA), there's no base version - use empty base
+          if err then
+            base_lines = {}
+          end
+
+          vim.schedule(function()
+            local conflict_diffs = compute_and_render_conflict(
+              original_info.bufnr, modified_info.bufnr,
+              base_lines, original_lines, modified_lines,
+              original_win, modified_win,
+              true  -- auto_scroll_to_first_hunk = true on create
+            )
+
+            if conflict_diffs then
+              -- Create lifecycle session for conflict mode
+              lifecycle.create_session(
+                tabpage,
+                session_config.mode,
+                session_config.git_root,
+                session_config.original_path,
+                session_config.modified_path,
+                session_config.original_revision,
+                session_config.modified_revision,
+                original_info.bufnr,
+                modified_info.bufnr,
+                original_win,
+                modified_win,
+                conflict_diffs.base_to_modified_diff
+              )
+
+              -- Setup auto-refresh for consistency (both buffers are virtual in conflict mode)
+              setup_auto_refresh(original_info.bufnr, modified_info.bufnr, true, true)
+
+              -- Setup result window and keymaps
+              local success = setup_conflict_result_window(tabpage, session_config, original_win, modified_win, base_lines, conflict_diffs, false)
+              if success then
+                setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, false)
+              end
+              
+              -- Signal that view is ready
+              if on_ready then on_ready() end
+            end
+          end)
+        end)
+      else
+        -- Normal mode: Compute and render diff between left and right
+        local lines_diff = compute_and_render(
+          original_info.bufnr, modified_info.bufnr,
+          original_lines, modified_lines,
+          original_is_virtual, modified_is_virtual,
+          original_win, modified_win,
+          true  -- auto_scroll_to_first_hunk = true on create
         )
 
-        -- Enable auto-refresh for real file buffers only
-        setup_auto_refresh(original_info.bufnr, modified_info.bufnr, original_is_virtual, modified_is_virtual)
+        if lines_diff then
+          -- Create complete lifecycle session (one step!)
+          lifecycle.create_session(
+            tabpage,
+            session_config.mode,
+            session_config.git_root,
+            session_config.original_path,
+            session_config.modified_path,
+            session_config.original_revision,
+            session_config.modified_revision,
+            original_info.bufnr,
+            modified_info.bufnr,
+            original_win,
+            modified_win,
+            lines_diff
+          )
 
-        -- Setup all keymaps in one place (centralized)
-        setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, false)
+          -- Enable auto-refresh for real file buffers only
+          setup_auto_refresh(original_info.bufnr, modified_info.bufnr, original_is_virtual, modified_is_virtual)
 
-        -- Setup auto-sync on file switch (after session is complete!)
-        lifecycle.setup_auto_sync_on_file_switch(tabpage, original_is_virtual, modified_is_virtual)
+          -- Setup all keymaps in one place (centralized)
+          setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, false)
+
+          -- Setup auto-sync on file switch (after session is complete!)
+          lifecycle.setup_auto_sync_on_file_switch(tabpage, original_is_virtual, modified_is_virtual)
+          
+          -- Signal that view is ready
+          if on_ready then on_ready() end
+        end
       end
     end
 
@@ -795,7 +952,6 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
 
           if conflict_diffs then
             -- Update lifecycle session with conflict diff info
-            -- Store combined diff result for lifecycle compatibility
             lifecycle.update_buffers(tabpage, original_info.bufnr, modified_info.bufnr)
             lifecycle.update_git_root(tabpage, session_config.git_root)
             lifecycle.update_revisions(tabpage, session_config.original_revision, session_config.modified_revision)
@@ -809,98 +965,11 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
             -- Setup auto-refresh for consistency (both buffers are virtual in conflict mode)
             setup_auto_refresh(original_info.bufnr, modified_info.bufnr, true, true)
 
-            -- ============================================================
-            -- Create result window at bottom with real file reset to BASE
-            -- ============================================================
-            local abs_path = session_config.git_root .. "/" .. session_config.original_path
-
-            -- Check if result window already exists
-            local existing_result_bufnr, existing_result_win = lifecycle.get_result(tabpage)
-            local result_win, result_bufnr
-
-            if existing_result_win and vim.api.nvim_win_is_valid(existing_result_win) then
-              -- Reuse existing result window
-              result_win = existing_result_win
-              vim.api.nvim_set_current_win(result_win)
-            else
-              -- Create layout: [explorer, [[original, modified], result]]
-              -- Current layout: [explorer, original, modified]
-              -- Strategy:
-              -- 1. Create split below modified
-              -- 2. Move original to be vsplit with modified (left of it)
-              -- This reorganizes to: [explorer, [[original, modified], result]]
-              
-              if vim.api.nvim_win_is_valid(modified_win) then
-                vim.api.nvim_set_current_win(modified_win)
-              end
-              vim.cmd("belowright split")
-              result_win = vim.api.nvim_get_current_win()
-              
-              -- Move original window to be a vertical split with modified
-              vim.fn.win_splitmove(original_win, modified_win, { vertical = true, rightbelow = false })
-
-              -- Set result window height (30% of available height or minimum 10 lines)
-              local total_height = vim.o.lines
-              local result_height = math.max(10, math.floor(total_height * 0.3))
-              vim.api.nvim_win_set_height(result_win, result_height)
-            end
-
-            -- Load real file buffer in result window
-            vim.cmd("edit " .. vim.fn.fnameescape(abs_path))
-            result_bufnr = vim.api.nvim_get_current_buf()
-
-            -- Reset buffer content to BASE (only if buffer has conflict markers)
-            local current_content = vim.api.nvim_buf_get_lines(result_bufnr, 0, -1, false)
-            local has_conflict_markers = false
-            for _, line in ipairs(current_content) do
-              if line:match("^<<<<<<<") or line:match("^=======") or line:match("^>>>>>>>") then
-                has_conflict_markers = true
-                break
-              end
-            end
-
-            if has_conflict_markers then
-              -- Reset to BASE content
-              vim.api.nvim_buf_set_lines(result_bufnr, 0, -1, false, base_lines)
-              vim.bo[result_bufnr].modified = true  -- Mark as modified since we changed content
-            end
-
-            -- Set window options for result
-            vim.wo[result_win].wrap = false
-            vim.wo[result_win].cursorline = true
-            vim.wo[result_win].winbar = ""
-
-            -- Enable scrollbind for result window (sync with top two buffers)
-            vim.api.nvim_win_set_cursor(result_win, {1, 0})
-            vim.wo[result_win].scrollbind = true
-
-            -- Update lifecycle with result buffer/window
-            lifecycle.set_result(tabpage, result_bufnr, result_win)
-
-            -- Store BASE lines for result buffer diff (used on resume)
-            lifecycle.set_result_base_lines(tabpage, base_lines)
-
-            -- Store conflict blocks for accept/reject actions
-            lifecycle.set_conflict_blocks(tabpage, conflict_diffs.conflict_blocks)
-
-            -- Track this file for unsaved warning on close
-            lifecycle.track_conflict_file(tabpage, abs_path)
-
-            -- Enable auto-refresh for result buffer (diff against BASE in lifecycle)
-            auto_refresh.enable_for_result(result_bufnr)
-
-            -- Setup all keymaps (now that result buffer is registered in lifecycle)
+            -- Setup result window and keymaps
             local is_explorer_mode = session.mode == "explorer"
-            setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
-
-            -- Setup conflict-specific keymaps
-            local conflict_actions = require('vscode-diff.render.conflict_actions')
-            conflict_actions.initialize_tracking(result_bufnr, conflict_diffs.conflict_blocks)
-            conflict_actions.setup_keymaps(tabpage)
-
-            -- Return focus to modified window (current/ours side)
-            if vim.api.nvim_win_is_valid(modified_win) then
-              vim.api.nvim_set_current_win(modified_win)
+            local success = setup_conflict_result_window(tabpage, session_config, original_win, modified_win, base_lines, conflict_diffs, true)
+            if success then
+              setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
             end
           end
         end)
