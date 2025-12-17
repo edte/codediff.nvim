@@ -170,6 +170,9 @@ describe("Explorer Buffer Management", function()
     assert.is_true(ready, "Session should be ready after switching to staged view")
 
     _, modified_buf = lifecycle.get_buffers(tabpage)
+    -- Wait for buffer content to actually contain expected text
+    local content_ready = h.wait_for_buffer_content(modified_buf, "change A", 5000)
+    assert.is_true(content_ready, "Staged buffer should contain 'change A'")
     content = h.get_buffer_content(modified_buf)
     h.assert_contains(content, "change A", "Staged should still show change A")
 

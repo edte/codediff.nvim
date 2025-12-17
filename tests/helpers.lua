@@ -159,6 +159,23 @@ function M.wait_for_virtual_file_load(bufnr, timeout_ms)
   return ok
 end
 
+-- Wait for buffer content to contain expected text
+-- @param bufnr: The buffer number
+-- @param expected: Text that should be in the buffer
+-- @param timeout_ms: Maximum time to wait (default 5000ms)
+-- @return boolean: true if content found
+function M.wait_for_buffer_content(bufnr, expected, timeout_ms)
+  timeout_ms = timeout_ms or 5000
+  return vim.wait(timeout_ms, function()
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+      return false
+    end
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local content = table.concat(lines, '\n')
+    return content:find(expected, 1, true) ~= nil
+  end, 50)
+end
+
 -- Get buffer content as a single string
 function M.get_buffer_content(bufnr)
   if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
