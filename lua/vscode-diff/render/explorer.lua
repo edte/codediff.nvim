@@ -216,7 +216,12 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
     bufnr = split.bufnr,
     nodes = tree_data,
     prepare_node = function(node)
-      return prepare_node(node, text_width, selected_path, selected_group)
+      -- Dynamically get current window width for responsive layout
+      local current_width = text_width
+      if split.winid and vim.api.nvim_win_is_valid(split.winid) then
+        current_width = vim.api.nvim_win_get_width(split.winid)
+      end
+      return prepare_node(node, current_width, selected_path, selected_group)
     end,
   })
 
@@ -520,6 +525,20 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
   
   -- Setup auto-refresh
   M.setup_auto_refresh(explorer, tabpage)
+  
+  -- Re-render on window resize for dynamic width
+  vim.api.nvim_create_autocmd('WinResized', {
+    callback = function()
+      -- Check if explorer window was resized
+      local resized_wins = vim.v.event.windows or {}
+      for _, win in ipairs(resized_wins) do
+        if win == explorer.winid and vim.api.nvim_win_is_valid(win) then
+          explorer.tree:render()
+          break
+        end
+      end
+    end,
+  })
   
   return explorer
 end
