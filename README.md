@@ -95,6 +95,7 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
           folder_closed = "",  -- Nerd Font folder icon (customize as needed)
           folder_open = "",    -- Nerd Font folder-open icon
         },
+        view_mode = "list",    -- "list" or "tree"
       },
 
       -- Keymaps in diff view
