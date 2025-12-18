@@ -31,6 +31,11 @@ M.defaults = {
     width = 40,         -- Width when position is "left" (columns)
     height = 15,        -- Height when position is "bottom" (lines)
     view_mode = "list", -- "list" (flat file list) or "tree" (directory tree)
+    indent_markers = true,  -- Show indent markers in tree view (│, ├, └)
+    icons = {
+      folder_closed = "\u{e5ff}",  -- Nerd Font: folder
+      folder_open = "\u{e5fe}",    -- Nerd Font: folder-open
+    },
   },
 
   -- Keymaps

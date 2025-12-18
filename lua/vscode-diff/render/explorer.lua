@@ -24,10 +24,16 @@ local function get_file_icon(path)
   return "", nil
 end
 
--- Folder icon (nvim-web-devicons doesn't have folder icons, use nerd font icons)
+-- Folder icon (configurable via config, with nerd font defaults)
 local function get_folder_icon(is_open)
-  -- Nerd Font: folder = e5ff, folder-open = e5fe
-  return is_open and "\u{e5fe}" or "\u{e5ff}", "Directory"
+  local explorer_config = config.options.explorer or {}
+  local icons = explorer_config.icons or {}
+  local defaults = config.defaults.explorer.icons
+  if is_open then
+    return icons.folder_open or defaults.folder_open, "Directory"
+  else
+    return icons.folder_closed or defaults.folder_closed, "Directory"
+  end
 end
 
 -- Create flat file nodes (list mode)
@@ -202,11 +208,18 @@ end
 local function prepare_node(node, max_width, selected_path, selected_group)
   local line = NuiLine()
   local data = node.data or {}
+  local explorer_config = config.options.explorer or {}
+  local use_indent_markers = explorer_config.indent_markers ~= false  -- default true
 
   -- Helper to build indent string with markers (for tree mode)
-  local function build_indent_markers(indent_state, hl_group)
+  local function build_indent_markers(indent_state)
     if not indent_state or #indent_state == 0 then
       return ""
+    end
+
+    if not use_indent_markers then
+      -- Plain space indentation
+      return string.rep("  ", #indent_state)
     end
 
     local indent_parts = {}
@@ -235,10 +248,10 @@ local function prepare_node(node, max_width, selected_path, selected_group)
     line:append(node.text, "Directory")
   elseif data.type == "directory" then
     -- Directory node (tree view mode) - with indent markers
-    local indent = build_indent_markers(data.indent_state, "NeoTreeIndentMarker")
+    local indent = build_indent_markers(data.indent_state)
     local folder_icon, folder_color = get_folder_icon(node:is_expanded())
     if #indent > 0 then
-      line:append(indent, "NeoTreeIndentMarker")
+      line:append(indent, use_indent_markers and "NeoTreeIndentMarker" or "Normal")
     end
     line:append(folder_icon .. " ", folder_color or "Directory")
     line:append(data.name, "Directory")
@@ -250,15 +263,14 @@ local function prepare_node(node, max_width, selected_path, selected_group)
     end
 
     -- Check if we're in tree mode (directory is already shown in hierarchy)
-    local explorer_config = config.options.explorer or {}
     local view_mode = explorer_config.view_mode or "list"
 
     -- File entry - VSCode style: filename (bold) + directory (dimmed) + status (right-aligned)
     local indent
     if view_mode == "tree" and data.indent_state then
-      indent = build_indent_markers(data.indent_state, "NeoTreeIndentMarker")
+      indent = build_indent_markers(data.indent_state)
       if #indent > 0 then
-        line:append(indent, "NeoTreeIndentMarker")
+        line:append(indent, use_indent_markers and "NeoTreeIndentMarker" or get_hl("Normal"))
       end
     else
       indent = string.rep("  ", node:get_depth() - 1)
