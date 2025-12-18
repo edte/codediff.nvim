@@ -49,6 +49,7 @@ M.defaults = {
       select = "<CR>",
       hover = "K",
       refresh = "R",
+      toggle_view_mode = "i",       -- Toggle between 'list' and 'tree' views
     },
   },
 }

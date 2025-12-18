@@ -630,6 +630,13 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
     end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
   end
 
+  -- Toggle view mode (i key) - switch between 'list' and 'tree'
+  if config.options.keymaps.explorer.toggle_view_mode then
+    vim.keymap.set("n", config.options.keymaps.explorer.toggle_view_mode, function()
+      M.toggle_view_mode(explorer)
+    end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
+  end
+
   -- Navigate to next file
   if config.options.keymaps.view.next_file then
     vim.keymap.set("n", config.options.keymaps.view.next_file, function()
@@ -996,6 +1003,23 @@ function M.toggle_visibility(explorer)
       vim.cmd('wincmd =')
     end)
   end
+end
+
+-- Toggle view mode between 'list' and 'tree'
+function M.toggle_view_mode(explorer)
+  if not explorer then return end
+  
+  local explorer_config = config.options.explorer or {}
+  local current_mode = explorer_config.view_mode or "list"
+  local new_mode = (current_mode == "list") and "tree" or "list"
+  
+  -- Update config
+  config.options.explorer.view_mode = new_mode
+  
+  -- Refresh to rebuild tree with new mode
+  M.refresh(explorer)
+  
+  vim.notify("Explorer view: " .. new_mode, vim.log.levels.INFO)
 end
 
 return M
