@@ -77,6 +77,14 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
         -- Brightness multiplier (only used when char_insert/char_delete are nil)
         -- nil = auto-detect based on background (1.4 for dark, 0.92 for light)
         char_brightness = nil,        -- Auto-adjust based on your colorscheme
+
+        -- Conflict sign highlights (for merge conflict views)
+        -- Accepts highlight group names or hex colors (e.g., "#f0883e")
+        -- nil = use default fallback chain
+        conflict_sign = nil,          -- Unresolved: DiagnosticSignWarn -> #f0883e
+        conflict_sign_resolved = nil, -- Resolved: Comment -> #6e7681
+        conflict_sign_accepted = nil, -- Accepted: GitSignsAdd -> DiagnosticSignOk -> #3fb950
+        conflict_sign_rejected = nil, -- Rejected: GitSignsDelete -> DiagnosticSignError -> #f85149
       },
 
       -- Diff view behavior
@@ -123,6 +131,8 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
           discard = "<leader>cx",          -- Discard both, keep base
           next_conflict = "]x",            -- Jump to next conflict
           prev_conflict = "[x",            -- Jump to previous conflict
+          diffget_incoming = "2do",        -- Get hunk from incoming (left/theirs) buffer
+          diffget_current = "3do",         -- Get hunk from current (right/ours) buffer
         },
       },
     })

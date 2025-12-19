@@ -17,6 +17,14 @@ M.defaults = {
     -- nil = auto-detect based on background (1.4 for dark, 0.92 for light)
     -- Set explicit value to override: char_brightness = 1.2
     char_brightness = nil,
+
+    -- Conflict sign highlights (for merge conflict views)
+    -- Accepts highlight group names (e.g., "DiagnosticWarn") or color values (e.g., "#f0883e")
+    -- nil = use default fallback chain (GitSigns* -> DiagnosticSign* -> hardcoded colors)
+    conflict_sign = nil,          -- Unresolved conflict sign (default: DiagnosticSignWarn -> #f0883e)
+    conflict_sign_resolved = nil, -- Resolved conflict sign (default: Comment -> #6e7681)
+    conflict_sign_accepted = nil, -- Accepted side sign (default: GitSignsAdd -> DiagnosticSignOk -> #3fb950)
+    conflict_sign_rejected = nil, -- Rejected side sign (default: GitSignsDelete -> DiagnosticSignError -> #f85149)
   },
 
   -- Diff view behavior
