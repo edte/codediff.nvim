@@ -2,6 +2,7 @@
 -- This is an end-to-end test that requires a real git repository
 
 local commands = require("codediff.commands")
+local virtual_file = require("codediff.core.virtual_file")
 
 -- Setup CodeDiff command for tests
 local function setup_command()
@@ -20,6 +21,7 @@ end
 
 describe("Virtual buffer diagnostics integration", function()
   before_each(function()
+    virtual_file.setup()
     setup_command()
   end)
 
