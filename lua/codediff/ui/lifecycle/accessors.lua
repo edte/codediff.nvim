@@ -407,7 +407,7 @@ function M.setup_auto_sync_on_file_switch(tabpage, original_is_virtual, modified
   local active_diffs = session.get_active_diffs()
   local sess = active_diffs[tabpage]
   if not sess then
-    vim.notify('[vscode-diff] No session found for auto-sync setup', vim.log.levels.ERROR)
+    vim.notify('[codediff] No session found for auto-sync setup', vim.log.levels.ERROR)
     return
   end
 
@@ -416,7 +416,7 @@ function M.setup_auto_sync_on_file_switch(tabpage, original_is_virtual, modified
   local working_side = original_is_virtual and "modified" or "original"
 
   if not working_win or not vim.api.nvim_win_is_valid(working_win) then
-    vim.notify('[vscode-diff] Working window not found for auto-sync', vim.log.levels.WARN)
+    vim.notify('[codediff] Working window not found for auto-sync', vim.log.levels.WARN)
     return
   end
 

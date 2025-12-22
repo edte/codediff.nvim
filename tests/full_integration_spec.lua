@@ -108,7 +108,7 @@ describe("Full Integration Suite", function()
       for i = 1, vim.fn.winnr('$') do
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
-        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+        if vim.bo[bufnr].filetype == "codediff-explorer" then
           has_explorer = true
           return true
         end

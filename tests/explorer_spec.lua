@@ -213,7 +213,7 @@ describe("Explorer Mode", function()
     for i = 1, wincount do
       local winid = vim.fn.win_getid(i)
       local bufnr = vim.api.nvim_win_get_buf(winid)
-      if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+      if vim.bo[bufnr].filetype == "codediff-explorer" then
         has_explorer = true
         break
       end
@@ -242,7 +242,7 @@ describe("Explorer Mode", function()
       for i = 1, vim.fn.winnr('$') do
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
-        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+        if vim.bo[bufnr].filetype == "codediff-explorer" then
           has_explorer = true
           return true
         end
@@ -263,7 +263,7 @@ describe("Explorer Mode", function()
       local bufnr = vim.api.nvim_win_get_buf(winid)
       local width = vim.api.nvim_win_get_width(winid)
       
-      if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+      if vim.bo[bufnr].filetype == "codediff-explorer" then
         explorer_width = width
       elseif vim.bo[bufnr].filetype ~= "" then
         table.insert(diff_widths, width)
@@ -300,7 +300,7 @@ describe("Explorer Mode", function()
       for i = 1, vim.fn.winnr('$') do
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
-        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+        if vim.bo[bufnr].filetype == "codediff-explorer" then
           explorer_buf = bufnr
           return true
         end
@@ -358,7 +358,7 @@ describe("Explorer Mode", function()
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
         local ft = vim.bo[bufnr].filetype
-        if ft ~= "vscode-diff-explorer" and ft ~= "" then
+        if ft ~= "codediff-explorer" and ft ~= "" then
           local lines = vim.api.nvim_buf_get_lines(bufnr, 0, 5, false)
           if #lines > 0 and lines[1] ~= "" then
             return true
@@ -374,7 +374,7 @@ describe("Explorer Mode", function()
       local winid = vim.fn.win_getid(i)
       local bufnr = vim.api.nvim_win_get_buf(winid)
       local ft = vim.bo[bufnr].filetype
-      if ft ~= "vscode-diff-explorer" and ft ~= "" then
+      if ft ~= "codediff-explorer" and ft ~= "" then
         local lines = vim.api.nvim_buf_get_lines(bufnr, 0, 5, false)
         if #lines > 0 and lines[1] ~= "" then
           has_content = true

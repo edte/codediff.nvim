@@ -73,19 +73,19 @@ end
 function M.diffget_incoming(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
-    vim.notify("[vscode-diff] No active session", vim.log.levels.WARN)
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
     return false
   end
 
   local current_buf = vim.api.nvim_get_current_buf()
 
   if current_buf ~= session.result_bufnr then
-    vim.notify("[vscode-diff] 2do only works from result buffer", vim.log.levels.INFO)
+    vim.notify("[codediff] 2do only works from result buffer", vim.log.levels.INFO)
     return false
   end
 
   if not session.conflict_blocks or #session.conflict_blocks == 0 then
-    vim.notify("[vscode-diff] No conflicts in this session", vim.log.levels.WARN)
+    vim.notify("[codediff] No conflicts in this session", vim.log.levels.WARN)
     return false
   end
 
@@ -93,7 +93,7 @@ function M.diffget_incoming(tabpage)
   local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
   local block = tracking.find_conflict_at_cursor_in_result(session, cursor_line)
   if not block then
-    vim.notify("[vscode-diff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -104,7 +104,7 @@ function M.diffget_incoming(tabpage)
   local result_bufnr = session.result_bufnr
   local base_lines = session.result_base_lines
   if not result_bufnr or not base_lines then
-    vim.notify("[vscode-diff] No result buffer or base lines", vim.log.levels.ERROR)
+    vim.notify("[codediff] No result buffer or base lines", vim.log.levels.ERROR)
     return false
   end
 
@@ -121,19 +121,19 @@ end
 function M.diffget_current(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
-    vim.notify("[vscode-diff] No active session", vim.log.levels.WARN)
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
     return false
   end
 
   local current_buf = vim.api.nvim_get_current_buf()
 
   if current_buf ~= session.result_bufnr then
-    vim.notify("[vscode-diff] 3do only works from result buffer", vim.log.levels.INFO)
+    vim.notify("[codediff] 3do only works from result buffer", vim.log.levels.INFO)
     return false
   end
 
   if not session.conflict_blocks or #session.conflict_blocks == 0 then
-    vim.notify("[vscode-diff] No conflicts in this session", vim.log.levels.WARN)
+    vim.notify("[codediff] No conflicts in this session", vim.log.levels.WARN)
     return false
   end
 
@@ -141,7 +141,7 @@ function M.diffget_current(tabpage)
   local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
   local block = tracking.find_conflict_at_cursor_in_result(session, cursor_line)
   if not block then
-    vim.notify("[vscode-diff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -152,7 +152,7 @@ function M.diffget_current(tabpage)
   local result_bufnr = session.result_bufnr
   local base_lines = session.result_base_lines
   if not result_bufnr or not base_lines then
-    vim.notify("[vscode-diff] No result buffer or base lines", vim.log.levels.ERROR)
+    vim.notify("[codediff] No result buffer or base lines", vim.log.levels.ERROR)
     return false
   end
 

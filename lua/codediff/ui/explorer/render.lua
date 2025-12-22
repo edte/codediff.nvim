@@ -40,7 +40,7 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
     buf_options = {
       modifiable = false,
       readonly = true,
-      filetype = "vscode-diff-explorer",
+      filetype = "codediff-explorer",
     },
     win_options = {
       number = false,

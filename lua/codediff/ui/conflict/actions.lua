@@ -82,12 +82,12 @@ end
 function M.accept_incoming(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
-    vim.notify("[vscode-diff] No active session", vim.log.levels.WARN)
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
     return false
   end
 
   if not session.conflict_blocks or #session.conflict_blocks == 0 then
-    vim.notify("[vscode-diff] No conflicts in this session", vim.log.levels.WARN)
+    vim.notify("[codediff] No conflicts in this session", vim.log.levels.WARN)
     return false
   end
 
@@ -101,13 +101,13 @@ function M.accept_incoming(tabpage)
   elseif current_buf == session.modified_bufnr then
     side = "right"
   else
-    vim.notify("[vscode-diff] Cursor not in diff buffer", vim.log.levels.WARN)
+    vim.notify("[codediff] Cursor not in diff buffer", vim.log.levels.WARN)
     return false
   end
 
   local block = tracking.find_conflict_at_cursor(session, cursor_line, side, false)
   if not block then
-    vim.notify("[vscode-diff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -118,7 +118,7 @@ function M.accept_incoming(tabpage)
   local result_bufnr = session.result_bufnr
   local base_lines = session.result_base_lines
   if not result_bufnr or not base_lines then
-    vim.notify("[vscode-diff] No result buffer or base lines", vim.log.levels.ERROR)
+    vim.notify("[codediff] No result buffer or base lines", vim.log.levels.ERROR)
     return false
   end
 
@@ -134,12 +134,12 @@ end
 function M.accept_current(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
-    vim.notify("[vscode-diff] No active session", vim.log.levels.WARN)
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
     return false
   end
 
   if not session.conflict_blocks or #session.conflict_blocks == 0 then
-    vim.notify("[vscode-diff] No conflicts in this session", vim.log.levels.WARN)
+    vim.notify("[codediff] No conflicts in this session", vim.log.levels.WARN)
     return false
   end
 
@@ -152,13 +152,13 @@ function M.accept_current(tabpage)
   elseif current_buf == session.modified_bufnr then
     side = "right"
   else
-    vim.notify("[vscode-diff] Cursor not in diff buffer", vim.log.levels.WARN)
+    vim.notify("[codediff] Cursor not in diff buffer", vim.log.levels.WARN)
     return false
   end
 
   local block = tracking.find_conflict_at_cursor(session, cursor_line, side, false)
   if not block then
-    vim.notify("[vscode-diff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -168,7 +168,7 @@ function M.accept_current(tabpage)
   local result_bufnr = session.result_bufnr
   local base_lines = session.result_base_lines
   if not result_bufnr or not base_lines then
-    vim.notify("[vscode-diff] No result buffer or base lines", vim.log.levels.ERROR)
+    vim.notify("[codediff] No result buffer or base lines", vim.log.levels.ERROR)
     return false
   end
 
@@ -184,12 +184,12 @@ end
 function M.accept_both(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
-    vim.notify("[vscode-diff] No active session", vim.log.levels.WARN)
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
     return false
   end
 
   if not session.conflict_blocks or #session.conflict_blocks == 0 then
-    vim.notify("[vscode-diff] No conflicts in this session", vim.log.levels.WARN)
+    vim.notify("[codediff] No conflicts in this session", vim.log.levels.WARN)
     return false
   end
 
@@ -202,13 +202,13 @@ function M.accept_both(tabpage)
   elseif current_buf == session.modified_bufnr then
     side = "right"
   else
-    vim.notify("[vscode-diff] Cursor not in diff buffer", vim.log.levels.WARN)
+    vim.notify("[codediff] Cursor not in diff buffer", vim.log.levels.WARN)
     return false
   end
 
   local block = tracking.find_conflict_at_cursor(session, cursor_line, side, false)
   if not block then
-    vim.notify("[vscode-diff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -228,7 +228,7 @@ function M.accept_both(tabpage)
   local result_bufnr = session.result_bufnr
   local base_lines = session.result_base_lines
   if not result_bufnr or not base_lines then
-    vim.notify("[vscode-diff] No result buffer or base lines", vim.log.levels.ERROR)
+    vim.notify("[codediff] No result buffer or base lines", vim.log.levels.ERROR)
     return false
   end
 
@@ -244,12 +244,12 @@ end
 function M.discard(tabpage)
   local session = lifecycle.get_session(tabpage)
   if not session then
-    vim.notify("[vscode-diff] No active session", vim.log.levels.WARN)
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
     return false
   end
 
   if not session.conflict_blocks or #session.conflict_blocks == 0 then
-    vim.notify("[vscode-diff] No conflicts in this session", vim.log.levels.WARN)
+    vim.notify("[codediff] No conflicts in this session", vim.log.levels.WARN)
     return false
   end
 
@@ -262,20 +262,20 @@ function M.discard(tabpage)
   elseif current_buf == session.modified_bufnr then
     side = "right"
   else
-    vim.notify("[vscode-diff] Cursor not in diff buffer", vim.log.levels.WARN)
+    vim.notify("[codediff] Cursor not in diff buffer", vim.log.levels.WARN)
     return false
   end
 
   local block = tracking.find_conflict_at_cursor(session, cursor_line, side, true) -- Allow resolved
   if not block then
-    vim.notify("[vscode-diff] No conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
   -- Get base content for this range
   local base_lines = session.result_base_lines
   if not base_lines then
-    vim.notify("[vscode-diff] No base lines available", vim.log.levels.ERROR)
+    vim.notify("[codediff] No base lines available", vim.log.levels.ERROR)
     return false
   end
 
@@ -286,7 +286,7 @@ function M.discard(tabpage)
 
   local result_bufnr = session.result_bufnr
   if not result_bufnr then
-    vim.notify("[vscode-diff] No result buffer", vim.log.levels.ERROR)
+    vim.notify("[codediff] No result buffer", vim.log.levels.ERROR)
     return false
   end
 
