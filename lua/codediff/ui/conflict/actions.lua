@@ -178,42 +178,14 @@ function M.accept_current(tabpage)
   return true
 end
 
---- Compare two positions (line, col) - returns true if a < b
---- @param a_line number
---- @param a_col number
---- @param b_line number
---- @param b_col number
---- @return boolean
-local function position_less_than(a_line, a_col, b_line, b_col)
-  if a_line ~= b_line then
-    return a_line < b_line
-  end
-  return a_col < b_col
-end
-
---- Compare two positions - returns true if a <= b
---- @param a_line number
---- @param a_col number
---- @param b_line number
---- @param b_col number
---- @return boolean
-local function position_less_or_equal(a_line, a_col, b_line, b_col)
-  if a_line ~= b_line then
-    return a_line < b_line
-  end
-  return a_col <= b_col
-end
-
 --- Try to smart combine inputs like VSCode does
 --- This interleaves character-level edits sorted by their position in base
 --- Returns nil if edits overlap and cannot be combined
+--- @param session table Session with buffer references
 --- @param block table Conflict block with inner1, inner2
---- @param base_lines table Base file lines
---- @param input1_lines table Input1 (left/incoming) lines
---- @param input2_lines table Input2 (right/current) lines
 --- @param first_input number 1 or 2 - which input takes priority on ties
 --- @return table|nil Combined lines, or nil if cannot be combined
-local function smart_combine_inputs(block, base_lines, input1_lines, input2_lines, first_input)
+local function smart_combine_inputs(session, block, first_input)
   local inner1 = block.inner1 or {}
   local inner2 = block.inner2 or {}
   
@@ -224,21 +196,31 @@ local function smart_combine_inputs(block, base_lines, input1_lines, input2_line
   end
   
   -- Collect all range edits with their source
+  -- Each inner has: original (position in base), modified (position in input)
   local combined_edits = {}
   
   for _, inner in ipairs(inner1) do
-    table.insert(combined_edits, { inner = inner, input = 1 })
+    table.insert(combined_edits, { 
+      input_range = inner.original,  -- Range in base file
+      output_range = inner.modified, -- Range in input file
+      input = 1 
+    })
   end
   for _, inner in ipairs(inner2) do
-    table.insert(combined_edits, { inner = inner, input = 2 })
+    table.insert(combined_edits, { 
+      input_range = inner.original,
+      output_range = inner.modified,
+      input = 2 
+    })
   end
   
-  -- Sort by position in base (original range), with first_input taking priority on ties
+  -- Sort by position in base (input_range), with first_input taking priority on ties
+  -- This matches VSCode's: compareBy((d) => d.diff.inputRange, Range.compareRangesUsingStarts)
   table.sort(combined_edits, function(a, b)
-    local a_start_line = a.inner.original.start_line
-    local a_start_col = a.inner.original.start_col
-    local b_start_line = b.inner.original.start_line
-    local b_start_col = b.inner.original.start_col
+    local a_start_line = a.input_range.start_line
+    local a_start_col = a.input_range.start_col
+    local b_start_line = b.input_range.start_line
+    local b_start_col = b.input_range.start_col
     
     if a_start_line ~= b_start_line then
       return a_start_line < b_start_line
@@ -246,128 +228,132 @@ local function smart_combine_inputs(block, base_lines, input1_lines, input2_line
     if a_start_col ~= b_start_col then
       return a_start_col < b_start_col
     end
-    -- Tie-breaker: first_input comes first
+    -- Tie-breaker: first_input comes first (lower number = earlier)
     local a_priority = (a.input == first_input) and 1 or 2
     local b_priority = (b.input == first_input) and 1 or 2
     return a_priority < b_priority
   end)
   
-  -- Build the result by applying edits in order
-  -- Track current position in base
+  -- Get full buffer contents (VSCode uses textModel.getValueInRange on full models)
+  local base_bufnr = session.result_bufnr  -- Result buffer starts as BASE content
+  local input1_bufnr = session.original_bufnr
+  local input2_bufnr = session.modified_bufnr
+  
+  -- Helper: get text from buffer between two positions (like VSCode's getValueInRange)
+  -- Positions are 1-based (line, col)
+  local function get_value_in_range(bufnr, start_line, start_col, end_line, end_col)
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+      return ""
+    end
+    
+    local lines = vim.api.nvim_buf_get_lines(bufnr, start_line - 1, end_line, false)
+    if #lines == 0 then
+      return ""
+    end
+    
+    if #lines == 1 then
+      -- Single line: extract from start_col to end_col-1
+      local line = lines[1] or ""
+      return line:sub(start_col, end_col - 1)
+    else
+      -- Multi-line: first line from start_col, middle lines full, last line to end_col-1
+      local result = {}
+      result[1] = (lines[1] or ""):sub(start_col)
+      for i = 2, #lines - 1 do
+        result[#result + 1] = lines[i] or ""
+      end
+      result[#result + 1] = (lines[#lines] or ""):sub(1, end_col - 1)
+      return table.concat(result, "\n")
+    end
+  end
+  
+  -- Build result text by walking through base and applying edits
+  -- This matches VSCode's editsToLineRangeEdit function
   local base_range = block.base_range
+  local base_lines = session.result_base_lines or {}
   local result_text = ""
   
-  -- Start position: line before base_range if exists, otherwise start of base_range
+  -- Start position: VSCode starts at end of line before base_range if exists
   local starts_line_before = base_range.start_line > 1
   local current_line, current_col
   if starts_line_before then
     current_line = base_range.start_line - 1
-    current_col = #(base_lines[current_line] or "") + 1  -- End of previous line (after last char)
+    current_col = #(base_lines[current_line] or "") + 1  -- Position after last char (like getLineMaxColumn)
   else
     current_line = base_range.start_line
     current_col = 1
   end
   
-  -- Helper to get text from base between two positions
-  local function get_base_text(from_line, from_col, to_line, to_col)
-    if from_line > #base_lines then
-      return ""
-    end
-    
-    local text = ""
-    for line = from_line, math.min(to_line, #base_lines) do
-      local line_text = base_lines[line] or ""
-      local start_c = (line == from_line) and from_col or 1
-      local end_c = (line == to_line) and (to_col - 1) or #line_text
-      
-      if start_c <= #line_text then
-        text = text .. line_text:sub(start_c, math.max(start_c - 1, end_c))
-      end
-      
-      -- Add newline between lines (not after last)
-      if line < to_line then
-        text = text .. "\n"
-      end
-    end
-    return text
-  end
-  
-  -- Helper to get text from input for a modified range
-  local function get_input_text(input_num, range)
-    local lines = (input_num == 1) and input1_lines or input2_lines
-    local text = ""
-    
-    for line = range.start_line, range.end_line do
-      local line_text = lines[line - ((input_num == 1) and block.output1_range.start_line or block.output2_range.start_line) + 1] or ""
-      local start_c = (line == range.start_line) and range.start_col or 1
-      local end_c = (line == range.end_line) and (range.end_col - 1) or #line_text
-      
-      if start_c <= #line_text + 1 then
-        text = text .. line_text:sub(start_c, math.max(start_c - 1, end_c))
-      end
-      
-      -- Add newline between lines
-      if line < range.end_line then
-        text = text .. "\n"
-      end
-    end
-    return text
-  end
-  
   for _, edit in ipairs(combined_edits) do
-    local inner = edit.inner
-    local orig = inner.original
-    local modif = inner.modified
+    local diff_start_line = edit.input_range.start_line
+    local diff_start_col = edit.input_range.start_col
     
-    -- Check if this edit overlaps with current position (would mean edits conflict)
-    if not position_less_or_equal(current_line, current_col, orig.start_line, orig.start_col) then
-      -- Edits overlap, cannot combine
-      return nil
+    -- Check overlap: current position must be <= edit start
+    if current_line > diff_start_line or 
+       (current_line == diff_start_line and current_col > diff_start_col) then
+      return nil  -- Overlap detected, cannot combine
     end
     
-    -- Add base text from current position to start of this edit
-    local base_text = get_base_text(current_line, current_col, orig.start_line, orig.start_col)
-    result_text = result_text .. base_text
+    -- Get base text from current position to edit start
+    local original_text = get_value_in_range(base_bufnr, current_line, current_col, diff_start_line, diff_start_col)
     
-    -- Add the replacement text from the input
-    local replacement = get_input_text(edit.input, modif)
-    result_text = result_text .. replacement
+    -- Handle virtual newline if edit starts past end of file
+    if diff_start_line > #base_lines then
+      original_text = original_text .. "\n"
+    end
     
-    -- Update current position to end of this edit's original range
-    current_line = orig.end_line
-    current_col = orig.end_col
+    result_text = result_text .. original_text
+    
+    -- Get replacement text from input
+    local source_bufnr = (edit.input == 1) and input1_bufnr or input2_bufnr
+    local new_text = get_value_in_range(
+      source_bufnr,
+      edit.output_range.start_line, edit.output_range.start_col,
+      edit.output_range.end_line, edit.output_range.end_col
+    )
+    result_text = result_text .. new_text
+    
+    -- Move current position to end of edit's input_range
+    current_line = edit.input_range.end_line
+    current_col = edit.input_range.end_col
   end
   
-  -- Add remaining base text after last edit
+  -- Get remaining base text after last edit
   local ends_line_after = base_range.end_line <= #base_lines
   local end_line, end_col
   if ends_line_after then
     end_line = base_range.end_line
     end_col = 1
   else
-    end_line = base_range.end_line - 1
+    end_line = math.max(1, base_range.end_line - 1)
     end_col = #(base_lines[end_line] or "") + 1
   end
   
-  local remaining = get_base_text(current_line, current_col, end_line, end_col)
-  result_text = result_text .. remaining
+  local remaining_text = get_value_in_range(base_bufnr, current_line, current_col, end_line, end_col)
+  result_text = result_text .. remaining_text
   
-  -- Split result into lines
+  -- Split result into lines (like VSCode's splitLines)
   local result_lines = {}
   for line in (result_text .. "\n"):gmatch("([^\n]*)\n") do
     table.insert(result_lines, line)
   end
+  -- Remove the extra empty line from our gmatch pattern
+  if #result_lines > 0 and result_lines[#result_lines] == "" and not result_text:match("\n$") then
+    table.remove(result_lines)
+  end
   
-  -- Trim leading/trailing based on whether we started before/ended after
+  -- Trim leading line if we started before base_range
   if starts_line_before and #result_lines > 0 then
     if result_lines[1] ~= "" then
-      return nil  -- First line should be empty if we started before
+      return nil  -- First line should be empty
     end
     table.remove(result_lines, 1)
   end
+  
+  -- Trim trailing line if we end after base_range
   if ends_line_after and #result_lines > 0 then
     if result_lines[#result_lines] ~= "" then
-      return nil  -- Last line should be empty if we end after
+      return nil  -- Last line should be empty
     end
     table.remove(result_lines)
   end
@@ -429,10 +415,6 @@ function M.accept_both(tabpage)
     return false
   end
 
-  -- Get both contents
-  local incoming_lines = tracking.get_lines_for_range(session.original_bufnr, block.output1_range.start_line, block.output1_range.end_line)
-  local current_lines = tracking.get_lines_for_range(session.modified_bufnr, block.output2_range.start_line, block.output2_range.end_line)
-  
   local result_bufnr = session.result_bufnr
   local base_lines = session.result_base_lines
   if not result_bufnr or not base_lines then
@@ -440,12 +422,19 @@ function M.accept_both(tabpage)
     return false
   end
 
+  -- Determine first_input based on which side the cursor is on (matches VSCode behavior)
+  -- If cursor is on left (incoming), incoming comes first
+  -- If cursor is on right (current), current comes first
+  local first_input = (side == "left") and 1 or 2
+  
   -- Try smart combination first (like VSCode's "Accept Combination")
-  local combined = smart_combine_inputs(block, base_lines, incoming_lines, current_lines, 1)
+  local combined = smart_combine_inputs(session, block, first_input)
   
   if not combined then
     -- Fallback to dumb combination (concatenate)
-    combined = dumb_combine_inputs(block, incoming_lines, current_lines, 1)
+    local incoming_lines = tracking.get_lines_for_range(session.original_bufnr, block.output1_range.start_line, block.output1_range.end_line)
+    local current_lines = tracking.get_lines_for_range(session.modified_bufnr, block.output2_range.start_line, block.output2_range.end_line)
+    combined = dumb_combine_inputs(incoming_lines, current_lines, first_input)
   end
 
   apply_to_result(result_bufnr, block, combined, base_lines)
