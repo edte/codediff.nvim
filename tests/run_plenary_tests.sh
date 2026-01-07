@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test runner for vscode-diff.nvim using plenary.nvim
+# Test runner for codediff.nvim using plenary.nvim
 
 set -e
 
@@ -14,7 +14,7 @@ NC='\033[0m'
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║          vscode-diff.nvim Test Suite (Plenary)               ║"
+echo "║          codediff.nvim Test Suite (Plenary)                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -25,6 +25,7 @@ FAILED=0
 
 # Test files
 SPEC_FILES=(
+  "tests/lazy_spec.lua"
   "tests/ffi_integration_spec.lua"
   "tests/installer_spec.lua"
   "tests/timeout_spec.lua"
@@ -38,6 +39,7 @@ SPEC_FILES=(
   "tests/render/core_spec.lua"
   "tests/render/lifecycle_spec.lua"
   "tests/render/view_spec.lua"
+  "tests/render/merge_alignment_spec.lua"
   "tests/integration_diagnostics_spec.lua"
   "tests/full_integration_spec.lua"
 )

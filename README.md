@@ -1,8 +1,6 @@
-# vscode-diff.nvim
+# codediff.nvim
 
-[![Pre-release](https://img.shields.io/github/v/release/esmuellert/vscode-diff.nvim?include_prereleases&sort=semver&label=🚀%20pre-release&color=orange)](https://github.com/esmuellert/vscode-diff.nvim/issues/97) [![Downloads](https://img.shields.io/github/downloads/esmuellert/vscode-diff.nvim/total?label=⬇%20downloads&color=blue)](https://github.com/esmuellert/vscode-diff.nvim/releases)
-
-> **🧪 v2.0.0 Pre-release Available!** The `next` branch includes new features like **Git Merge Tool support**. [Help us test it!](https://github.com/esmuellert/vscode-diff.nvim/issues/97)
+[![Downloads](https://img.shields.io/github/downloads/esmuellert/vscode-diff.nvim/total?label=⬇%20downloads&color=blue)](https://github.com/esmuellert/vscode-diff.nvim/releases)
 
 A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-tier highlighting.
 
@@ -47,7 +45,7 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
 **Minimal installation:**
 ```lua
 {
-  "esmuellert/vscode-diff.nvim",
+  "esmuellert/codediff.nvim",
   dependencies = { "MunifTanjim/nui.nvim" },
   cmd = "CodeDiff",
 }
@@ -58,11 +56,11 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
 **With custom configuration:**
 ```lua
 {
-  "esmuellert/vscode-diff.nvim",
+  "esmuellert/codediff.nvim",
   dependencies = { "MunifTanjim/nui.nvim" },
   cmd = "CodeDiff",
   config = function()
-    require("vscode-diff").setup({
+    require("codediff").setup({
       -- Highlight configuration
       highlights = {
         -- Line-level: accepts highlight group names or hex colors (e.g., "#2ea043")
@@ -77,12 +75,21 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
         -- Brightness multiplier (only used when char_insert/char_delete are nil)
         -- nil = auto-detect based on background (1.4 for dark, 0.92 for light)
         char_brightness = nil,        -- Auto-adjust based on your colorscheme
+
+        -- Conflict sign highlights (for merge conflict views)
+        -- Accepts highlight group names or hex colors (e.g., "#f0883e")
+        -- nil = use default fallback chain
+        conflict_sign = nil,          -- Unresolved: DiagnosticSignWarn -> #f0883e
+        conflict_sign_resolved = nil, -- Resolved: Comment -> #6e7681
+        conflict_sign_accepted = nil, -- Accepted: GitSignsAdd -> DiagnosticSignOk -> #3fb950
+        conflict_sign_rejected = nil, -- Rejected: GitSignsDelete -> DiagnosticSignError -> #f85149
       },
 
       -- Diff view behavior
       diff = {
         disable_inlay_hints = true,         -- Disable inlay hints in diff windows for cleaner view
         max_computation_time_ms = 5000,     -- Maximum time for diff computation (VSCode default)
+        hide_merge_artifacts = false,       -- Hide merge tool temp files (*.orig, *.BACKUP.*, *.BASE.*, *.LOCAL.*, *.REMOTE.*)
       },
 
       -- Explorer panel configuration
@@ -119,6 +126,16 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
           refresh = "R",      -- Refresh git status
           toggle_view_mode = "i",  -- Toggle between 'list' and 'tree' views
         },
+        conflict = {
+          accept_incoming = "<leader>ct",  -- Accept incoming (theirs/left) change
+          accept_current = "<leader>co",   -- Accept current (ours/right) change
+          accept_both = "<leader>cb",      -- Accept both changes (incoming first)
+          discard = "<leader>cx",          -- Discard both, keep base
+          next_conflict = "]x",            -- Jump to next conflict
+          prev_conflict = "[x",            -- Jump to previous conflict
+          diffget_incoming = "2do",        -- Get hunk from incoming (left/theirs) buffer
+          diffget_current = "3do",         -- Get hunk from current (right/ours) buffer
+        },
       },
     })
   end,
@@ -154,12 +171,12 @@ If you prefer to install manually without a plugin manager:
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/esmuellert/vscode-diff.nvim ~/.local/share/nvim/vscode-diff.nvim
+git clone https://github.com/esmuellert/codediff.nvim ~/.local/share/nvim/codediff.nvim
 ```
 
 2. **Add to your Neovim runtime path in `init.lua`:**
 ```lua
-vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
+vim.opt.rtp:append("~/.local/share/nvim/codediff.nvim")
 ```
 
 3. **Install the C library:**
@@ -171,7 +188,7 @@ The plugin requires a C library binary in the plugin root directory. The plugin 
 
 **Option A: Download from GitHub releases** (recommended)
 
-Download the appropriate binary from the [GitHub releases page](https://github.com/esmuellert/vscode-diff.nvim/releases) and place it in the plugin root directory. Rename it to match the expected format: `libvscode_diff.so`/`.dylib`/`.dll` or `libvscode_diff_<version>.so`/`.dylib`/`.dll`. **Linux users**: If your system lacks OpenMP, also download `libgomp_linux_{arch}_{version}.so.1` and rename it to `libgomp.so.1` in the same directory.
+Download the appropriate binary from the [GitHub releases page](https://github.com/esmuellert/codediff.nvim/releases) and place it in the plugin root directory. Rename it to match the expected format: `libvscode_diff.so`/`.dylib`/`.dll` or `libvscode_diff_<version>.so`/`.dylib`/`.dll`. **Linux users**: If your system lacks OpenMP, also download `libgomp_linux_{arch}_{version}.so.1` and rename it to `libgomp.so.1` in the same directory.
 
 **Option B: Build from source**
 
@@ -266,7 +283,7 @@ Compare two arbitrary files side-by-side:
 
 ```lua
 -- Primary user API - setup configuration
-require("vscode-diff").setup({
+require("codediff").setup({
   highlights = {
     line_insert = "DiffAdd",
     line_delete = "DiffDelete",
@@ -275,9 +292,9 @@ require("vscode-diff").setup({
 })
 
 -- Advanced usage - direct access to internal modules
-local diff = require("vscode-diff.diff")
-local render = require("vscode-diff.render")
-local git = require("vscode-diff.git")
+local diff = require("codediff.diff")
+local render = require("codediff.ui")
+local git = require("codediff.git")
 
 -- Example 1: Compute diff between two sets of lines
 local lines_a = {"line 1", "line 2"}
@@ -423,31 +440,34 @@ For more details on the test structure, see [`tests/README.md`](tests/README.md)
 ### Project Structure
 
 ```
-vscode-diff.nvim/
-├── libvscode-diff/       # C diff engine
-│   ├── src/              # C implementation
-│   ├── include/          # C headers
-│   └── tests/            # C unit tests
-├── lua/vscode-diff/      # Lua modules
-│   ├── init.lua          # Main API
-│   ├── config.lua        # Configuration
-│   ├── diff.lua          # FFI interface
-│   ├── git.lua           # Git operations
-│   ├── commands.lua      # Command handlers
-│   ├── installer.lua     # Binary installer
-│   └── render/           # Rendering modules
-│       ├── core.lua      # Diff rendering
-│       ├── view.lua      # View management
-│       ├── explorer.lua  # Git status explorer
-│       └── highlights.lua # Highlight setup
-├── plugin/               # Plugin entry point
-│   └── vscode-diff.lua   # Auto-loaded on startup
-├── tests/                # Test suite (plenary.nvim)
-│   └── README.md         # Test documentation
-├── docs/                 # Production docs
-├── dev-docs/             # Development docs
-├── Makefile              # Build automation
-└── README.md             # This file
+codediff.nvim/
+├── libvscode-diff/        # C diff engine
+│   ├── src/               # C implementation
+│   ├── include/           # C headers
+│   └── tests/             # C unit tests
+├── lua/
+│   ├── codediff/          # Main Lua modules
+│   │   ├── init.lua       # Main API
+│   │   ├── config.lua     # Configuration
+│   │   ├── diff.lua       # FFI interface
+│   │   ├── git.lua        # Git operations
+│   │   ├── commands.lua   # Command handlers
+│   │   ├── installer.lua  # Binary installer
+│   │   └── ui/            # UI components
+│   │       ├── core.lua       # Diff rendering
+│   │       ├── highlights.lua # Highlight setup
+│   │       ├── view/          # View management
+│   │       ├── explorer/      # Git status explorer
+│   │       ├── lifecycle/     # Lifecycle management
+│   │       └── conflict/      # Conflict resolution
+│   └── vscode-diff/       # Backward compatibility shims
+├── plugin/                # Plugin entry point
+│   └── codediff.lua       # Auto-loaded on startup
+├── tests/                 # Test suite (plenary.nvim)
+├── docs/                  # Production docs
+├── dev-docs/              # Development docs
+├── Makefile               # Build automation
+└── README.md
 ```
 
 ## Roadmap

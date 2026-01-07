@@ -1,9 +1,9 @@
 -- Test: render/lifecycle.lua - Lifecycle and cleanup management
 -- Critical tests for preventing memory leaks and state corruption
 
-local lifecycle = require("vscode-diff.render.lifecycle")
-local highlights = require("vscode-diff.render.highlights")
-local diff = require("vscode-diff.diff")
+local lifecycle = require("codediff.ui.lifecycle")
+local highlights = require("codediff.ui.highlights")
+local diff = require('codediff.core.diff')
 
 describe("Render Lifecycle", function()
   before_each(function()
@@ -186,7 +186,7 @@ describe("Render Lifecycle", function()
     lifecycle.setup_autocmds()
 
     -- Verify autocmd group exists
-    local augroups = vim.api.nvim_get_autocmds({group = "vscode_diff_lifecycle"})
+    local augroups = vim.api.nvim_get_autocmds({group = "codediff_lifecycle"})
     assert.is_true(#augroups > 0, "Should create autocmd group with commands")
   end)
 
@@ -439,7 +439,7 @@ describe("Render Lifecycle", function()
     lifecycle.setup()
 
     -- Should not crash or create duplicate autocmds
-    local augroups = vim.api.nvim_get_autocmds({group = "vscode_diff_lifecycle"})
+    local augroups = vim.api.nvim_get_autocmds({group = "codediff_lifecycle"})
     assert.is_true(#augroups > 0, "Should have autocmds after multiple setups")
   end)
 

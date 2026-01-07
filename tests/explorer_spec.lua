@@ -1,11 +1,11 @@
 -- Test: Explorer Mode
 -- Validates git status explorer functionality, window management, and file selection
 
-local git = require("vscode-diff.git")
+local git = require('codediff.core.git')
 
 -- Setup CodeDiff command for tests
 local function setup_command()
-  local commands = require("vscode-diff.commands")
+  local commands = require("codediff.commands")
   vim.api.nvim_create_user_command("CodeDiff", function(opts)
     commands.vscode_diff(opts)
   end, {
@@ -91,6 +91,7 @@ describe("Explorer Mode", function()
     assert.is_not_nil(status_result, "Status result should not be nil")
     assert.is_table(status_result.unstaged, "Should have unstaged table")
     assert.is_table(status_result.staged, "Should have staged table")
+    assert.is_table(status_result.conflicts, "Should have conflicts table")
     
     -- Should have at least one unstaged file (file1.txt modified)
     assert.is_true(#status_result.unstaged >= 1, "Should have unstaged changes")
@@ -140,6 +141,46 @@ describe("Explorer Mode", function()
     assert.is_true(has_untracked, "Should detect untracked file")
   end)
 
+  -- Test 2.5: Git status detects merge conflicts
+  it("Detects merge conflicts", function()
+    -- Create a branch and make conflicting changes
+    vim.fn.system("git checkout -b feature")
+    vim.fn.writefile({"feature line 1", "line 2"}, temp_dir .. "/file1.txt")
+    vim.fn.system("git add file1.txt")
+    vim.fn.system('git commit -m "Feature change"')
+    
+    vim.fn.system("git checkout master")
+    vim.fn.writefile({"master line 1", "line 2"}, temp_dir .. "/file1.txt")
+    vim.fn.system("git add file1.txt")
+    vim.fn.system('git commit -m "Master change"')
+    
+    -- Attempt merge (will fail with conflict)
+    vim.fn.system("git merge feature")
+    
+    local callback_called = false
+    local status_result = nil
+    
+    git.get_status(temp_dir, function(err, result)
+      callback_called = true
+      status_result = result
+    end)
+    
+    vim.wait(2000, function() return callback_called end)
+    assert.is_true(callback_called)
+    
+    -- Check for conflict file
+    local has_conflict = false
+    for _, file in ipairs(status_result.conflicts) do
+      if file.path == "file1.txt" and file.status == "!" then
+        has_conflict = true
+      end
+    end
+    assert.is_true(has_conflict, "Should detect merge conflict")
+    
+    -- Abort merge to clean up
+    vim.fn.system("git merge --abort")
+  end)
+
   -- Test 3: Explorer creates proper window layout
   it("Creates correct window layout", function()
     -- Skip if nui.nvim is not available
@@ -172,7 +213,7 @@ describe("Explorer Mode", function()
     for i = 1, wincount do
       local winid = vim.fn.win_getid(i)
       local bufnr = vim.api.nvim_win_get_buf(winid)
-      if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+      if vim.bo[bufnr].filetype == "codediff-explorer" then
         has_explorer = true
         break
       end
@@ -201,7 +242,7 @@ describe("Explorer Mode", function()
       for i = 1, vim.fn.winnr('$') do
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
-        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+        if vim.bo[bufnr].filetype == "codediff-explorer" then
           has_explorer = true
           return true
         end
@@ -222,7 +263,7 @@ describe("Explorer Mode", function()
       local bufnr = vim.api.nvim_win_get_buf(winid)
       local width = vim.api.nvim_win_get_width(winid)
       
-      if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+      if vim.bo[bufnr].filetype == "codediff-explorer" then
         explorer_width = width
       elseif vim.bo[bufnr].filetype ~= "" then
         table.insert(diff_widths, width)
@@ -259,7 +300,7 @@ describe("Explorer Mode", function()
       for i = 1, vim.fn.winnr('$') do
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
-        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+        if vim.bo[bufnr].filetype == "codediff-explorer" then
           explorer_buf = bufnr
           return true
         end
@@ -317,7 +358,7 @@ describe("Explorer Mode", function()
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
         local ft = vim.bo[bufnr].filetype
-        if ft ~= "vscode-diff-explorer" and ft ~= "" then
+        if ft ~= "codediff-explorer" and ft ~= "" then
           local lines = vim.api.nvim_buf_get_lines(bufnr, 0, 5, false)
           if #lines > 0 and lines[1] ~= "" then
             return true
@@ -333,7 +374,7 @@ describe("Explorer Mode", function()
       local winid = vim.fn.win_getid(i)
       local bufnr = vim.api.nvim_win_get_buf(winid)
       local ft = vim.bo[bufnr].filetype
-      if ft ~= "vscode-diff-explorer" and ft ~= "" then
+      if ft ~= "codediff-explorer" and ft ~= "" then
         local lines = vim.api.nvim_buf_get_lines(bufnr, 0, 5, false)
         if #lines > 0 and lines[1] ~= "" then
           has_content = true
@@ -362,7 +403,7 @@ describe("Explorer Mode", function()
     end)
     
     local tabpage = vim.api.nvim_get_current_tabpage()
-    local has_lifecycle, lifecycle = pcall(require, 'vscode-diff.render.lifecycle')
+    local has_lifecycle, lifecycle = pcall(require, 'codediff.ui.lifecycle')
     if not has_lifecycle then
       pending("lifecycle module not available in test context")
       return

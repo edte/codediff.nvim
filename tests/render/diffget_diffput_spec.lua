@@ -1,10 +1,10 @@
 -- Test: diffget/diffput (do/dp) functionality
 -- Tests for vimdiff-style change transfer between buffers
 
-local view = require("vscode-diff.render.view")
-local diff = require("vscode-diff.diff")
-local highlights = require("vscode-diff.render.highlights")
-local lifecycle = require("vscode-diff.render.lifecycle")
+local view = require("codediff.ui.view")
+local diff = require('codediff.core.diff')
+local highlights = require("codediff.ui.highlights")
+local lifecycle = require("codediff.ui.lifecycle")
 
 -- Helper to get temp path
 local function get_temp_path(filename)

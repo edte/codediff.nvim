@@ -1,7 +1,7 @@
 -- Test: Full Integration
 -- Validates all supported commands documented in README.md
 
-local commands = require("vscode-diff.commands")
+local commands = require("codediff.commands")
 
 -- Setup CodeDiff command for tests
 local function setup_command()
@@ -108,7 +108,7 @@ describe("Full Integration Suite", function()
       for i = 1, vim.fn.winnr('$') do
         local winid = vim.fn.win_getid(i)
         local bufnr = vim.api.nvim_win_get_buf(winid)
-        if vim.bo[bufnr].filetype == "vscode-diff-explorer" then
+        if vim.bo[bufnr].filetype == "codediff-explorer" then
           has_explorer = true
           return true
         end

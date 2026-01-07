@@ -1,10 +1,10 @@
 -- Render module facade
 local M = {}
 
-local highlights = require('vscode-diff.render.highlights')
-local view = require('vscode-diff.render.view')
-local core = require('vscode-diff.render.core')
-local lifecycle = require('vscode-diff.render.lifecycle')
+local highlights = require('codediff.ui.highlights')
+local view = require('codediff.ui.view')
+local core = require('codediff.ui.core')
+local lifecycle = require('codediff.ui.lifecycle')
 
 -- Public functions
 M.setup_highlights = highlights.setup

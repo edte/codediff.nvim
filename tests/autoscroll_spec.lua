@@ -1,10 +1,10 @@
 -- Test: Auto-scroll to first hunk
 -- Validates that the diff view centers on the first change and activates scroll sync
 
-local render = require("vscode-diff.render")
-local view = require("vscode-diff.render.view")
-local diff = require("vscode-diff.diff")
-local lifecycle = require("vscode-diff.render.lifecycle")
+local render = require("codediff.ui")
+local view = require("codediff.ui.view")
+local diff = require('codediff.core.diff')
+local lifecycle = require("codediff.ui.lifecycle")
 
 -- Helper function to get platform-agnostic temp directory
 local function get_temp_dir()

@@ -30,7 +30,7 @@ describe("Explorer Buffer Management", function()
   end)
 
   it("should parse virtual file URLs correctly", function()
-    local virtual_file = require('vscode-diff.virtual_file')
+    local virtual_file = require('codediff.core.virtual_file')
 
     -- Use the actual repo.dir for cross-platform compatibility
     local normalized_dir = h.normalize_path(repo.dir)
@@ -58,13 +58,13 @@ describe("Explorer Buffer Management", function()
   end)
 
   it("should load virtual file content via BufReadCmd", function()
-    local virtual_file = require('vscode-diff.virtual_file')
+    local virtual_file = require('codediff.core.virtual_file')
 
     -- Listen for the loaded event
     local event_fired = false
     local event_buf = nil
     vim.api.nvim_create_autocmd('User', {
-      pattern = 'VscodeDiffVirtualFileLoaded',
+      pattern = 'CodeDiffVirtualFileLoaded',
       callback = function(args)
         event_fired = true
         event_buf = args.data and args.data.buf
@@ -80,7 +80,7 @@ describe("Explorer Buffer Management", function()
     local ok = vim.wait(5000, function() return event_fired end, 50)
 
     assert.is_true(ok, "Event should fire within timeout")
-    assert.is_true(event_fired, "VscodeDiffVirtualFileLoaded should fire")
+    assert.is_true(event_fired, "CodeDiffVirtualFileLoaded should fire")
     assert.equals(buf, event_buf, "Event should report correct buffer")
 
     -- Verify buffer content matches git content
@@ -97,8 +97,8 @@ describe("Explorer Buffer Management", function()
     -- 4. Stage change B -> validate Staged has A+B
     -- 5. Unstage file -> validate Changes has A+B
     
-    local view = require('vscode-diff.render.view')
-    local lifecycle = require('vscode-diff.render.lifecycle')
+    local view = require('codediff.ui.view')
+    local lifecycle = require('codediff.ui.lifecycle')
 
     -- Step 1: Make change A
     repo.write_file('test.txt', {'line 1', 'line 2', 'line 3', 'change A'})

@@ -6,12 +6,15 @@ local M = {}
 -- Ensure the plugin is loaded
 -- This is needed because PlenaryBustedFile spawns a subprocess that may not have loaded our plugin
 function M.ensure_plugin_loaded()
-  if not vim.g.loaded_vscode_diff then
-    local plugin_file = vim.fn.getcwd() .. '/plugin/vscode-diff.lua'
+  if not vim.g.loaded_codediff then
+    local plugin_file = vim.fn.getcwd() .. '/plugin/codediff.lua'
     if vim.fn.filereadable(plugin_file) == 1 then
       dofile(plugin_file)
     end
   end
+  -- Also ensure virtual_file autocmds are set up (plenary may clear them between tests)
+  local virtual_file = require('codediff.core.virtual_file')
+  virtual_file.setup()
 end
 
 -- Detect if running on Windows
@@ -135,7 +138,7 @@ end
 -- @return boolean: true if session is ready
 function M.wait_for_session_ready(tabpage, timeout_ms)
   timeout_ms = timeout_ms or 10000
-  local lifecycle = require('vscode-diff.render.lifecycle')
+  local lifecycle = require('codediff.ui.lifecycle')
   
   return vim.wait(timeout_ms, function()
     local session = lifecycle.get_session(tabpage)
@@ -161,7 +164,7 @@ function M.wait_for_virtual_file_load(bufnr, timeout_ms)
   local group = vim.api.nvim_create_augroup('TestWaitVirtualFile', { clear = true })
   vim.api.nvim_create_autocmd('User', {
     group = group,
-    pattern = 'VscodeDiffVirtualFileLoaded',
+    pattern = 'CodeDiffVirtualFileLoaded',
     callback = function(event)
       if event.data and event.data.buf == bufnr then
         loaded = true

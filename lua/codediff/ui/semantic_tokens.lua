@@ -32,7 +32,7 @@ local api = vim.api
 local bit = require('bit')
 
 -- Namespace for semantic token highlights
-local ns_semantic = api.nvim_create_namespace('vscode_diff_semantic_tokens')
+local ns_semantic = api.nvim_create_namespace('codediff_semantic_tokens')
 
 -- ============================================================================
 -- VENDORED FROM: vim/lsp/semantic_tokens.lua
@@ -145,8 +145,8 @@ local function apply_highlights(bufnr, ranges)
 end
 
 --- Request and apply semantic tokens to left buffer from right buffer's LSP
---- The left buffer is a virtual file (vscodediff://) which we manually register with LSP
---- @param left_buf integer Left buffer (virtual file with vscodediff:// URI)
+--- The left buffer is a virtual file (codediff://) which we manually register with LSP
+--- @param left_buf integer Left buffer (virtual file with codediff:// URI)
 --- @param right_buf integer Right buffer (real file, has LSP attached)
 --- @return boolean success
 function M.apply_semantic_tokens(left_buf, right_buf)
