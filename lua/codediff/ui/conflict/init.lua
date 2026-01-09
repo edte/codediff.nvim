@@ -33,6 +33,7 @@ M.setup_sign_refresh_autocmd = signs.setup_sign_refresh_autocmd
 -- Delegate to actions module
 M.accept_incoming = actions.accept_incoming
 M.accept_current = actions.accept_current
+M.accept_this = actions.accept_this
 M.accept_both = actions.accept_both
 M.discard = actions.discard
 

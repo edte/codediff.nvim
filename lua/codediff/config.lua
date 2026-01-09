@@ -72,6 +72,7 @@ M.defaults = {
     conflict = {
       accept_incoming = "<leader>ct",  -- Accept incoming (theirs/left) change
       accept_current = "<leader>co",   -- Accept current (ours/right) change
+      accept_this = "<leader>ca",      -- Accept change from the side where cursor is
       accept_both = "<leader>cb",      -- Accept both changes (incoming first)
       discard = "<leader>cx",          -- Discard both, keep base
       next_conflict = "]x",            -- Jump to next conflict

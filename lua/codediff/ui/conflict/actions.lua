@@ -105,9 +105,9 @@ function M.accept_incoming(tabpage)
     return false
   end
 
-  local block = tracking.find_conflict_at_cursor(session, cursor_line, side, false)
+  local block = tracking.find_conflict_at_cursor(session, cursor_line, side, true)
   if not block then
-    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -126,6 +126,30 @@ function M.accept_incoming(tabpage)
   signs.refresh_all_conflict_signs(session)
   auto_refresh.refresh_result_now(result_bufnr)
   return true
+end
+
+--- Accept the side where cursor is (left=incoming, right=current)
+--- @param tabpage number
+--- @return boolean success
+function M.accept_this(tabpage)
+  local session = lifecycle.get_session(tabpage)
+  if not session then
+    vim.notify("[codediff] No active session", vim.log.levels.WARN)
+    return false
+  end
+
+  local current_buf = vim.api.nvim_get_current_buf()
+
+  if current_buf == session.original_bufnr then
+    -- Cursor is in left (incoming) window
+    return M.accept_incoming(tabpage)
+  elseif current_buf == session.modified_bufnr then
+    -- Cursor is in right (current) window
+    return M.accept_current(tabpage)
+  else
+    vim.notify("[codediff] Move cursor to left or right diff window first", vim.log.levels.WARN)
+    return false
+  end
 end
 
 --- Accept current (right/input2) side for the conflict under cursor
@@ -156,9 +180,9 @@ function M.accept_current(tabpage)
     return false
   end
 
-  local block = tracking.find_conflict_at_cursor(session, cursor_line, side, false)
+  local block = tracking.find_conflict_at_cursor(session, cursor_line, side, true)
   if not block then
-    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 
@@ -409,9 +433,9 @@ function M.accept_both(tabpage)
     return false
   end
 
-  local block = tracking.find_conflict_at_cursor(session, cursor_line, side, false)
+  local block = tracking.find_conflict_at_cursor(session, cursor_line, side, true)
   if not block then
-    vim.notify("[codediff] No active conflict at cursor position", vim.log.levels.INFO)
+    vim.notify("[codediff] No conflict at cursor position", vim.log.levels.INFO)
     return false
   end
 

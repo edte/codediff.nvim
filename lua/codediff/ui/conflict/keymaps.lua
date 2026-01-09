@@ -52,6 +52,13 @@ function M.setup_keymaps(tabpage)
         end), vim.tbl_extend('force', base_opts, { buffer = bufnr, desc = "Accept current change", expr = true }))
       end
 
+      -- Accept this (whichever side cursor is on)
+      if keymaps.accept_this then
+        vim.keymap.set("n", keymaps.accept_this, tracking.make_repeatable(function()
+          actions.accept_this(tabpage)
+        end), vim.tbl_extend('force', base_opts, { buffer = bufnr, desc = "Accept change from cursor side", expr = true }))
+      end
+
       -- Accept both
       if keymaps.accept_both then
         vim.keymap.set("n", keymaps.accept_both, tracking.make_repeatable(function()
@@ -91,6 +98,23 @@ function M.setup_keymaps(tabpage)
         vim.keymap.set("n", keymaps.diffget_current, tracking.make_repeatable(function()
           diffget.diffget_current(tabpage)
         end), vim.tbl_extend('force', base_opts, { buffer = bufnr, desc = "Get hunk from current (3do)", expr = true }))
+      end
+
+      -- Undo in left/right windows: jump to result window and undo there
+      -- Only if result buffer has been modified (has undo history)
+      if bufnr == session.original_bufnr or bufnr == session.modified_bufnr then
+        vim.keymap.set("n", "u", function()
+          if session.result_win and vim.api.nvim_win_is_valid(session.result_win)
+             and session.result_bufnr and vim.api.nvim_buf_is_valid(session.result_bufnr) then
+            -- Check if result buffer has undo history
+            local undotree = vim.fn.undotree(session.result_bufnr)
+            if undotree.seq_cur > 0 then
+              vim.api.nvim_set_current_win(session.result_win)
+              vim.cmd("undo")
+            end
+            -- If no undo history, do nothing silently
+          end
+        end, vim.tbl_extend('force', base_opts, { buffer = bufnr, desc = "Undo in result buffer" }))
       end
     end
   end
