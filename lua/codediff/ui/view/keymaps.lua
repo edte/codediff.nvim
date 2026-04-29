@@ -740,9 +740,11 @@ function M.setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explore
     local saved_scrollbind_current = vim.wo[current_win].scrollbind
     local saved_scrollbind_other = vim.wo[other_win].scrollbind
 
-    -- Disable scrollbind
+    -- Disable scrollbind and cursorbind
     vim.wo[current_win].scrollbind = false
     vim.wo[other_win].scrollbind = false
+    vim.wo[current_win].cursorbind = false
+    vim.wo[other_win].cursorbind = false
 
     -- Align using the annotation virt_line as anchor:
     -- Both sides have "⇄ moved" above their first moved line.
@@ -806,6 +808,9 @@ function M.setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_explore
         orig_cur, mod_cur = mod_cur, orig_cur
       end
       render.establish_scrollbind(orig_win, mod_win, orig_buf_nr, mod_buf_nr, diff_result, orig_cur, mod_cur)
+      -- Restore cursorbind
+      vim.wo[current_win].cursorbind = true
+      vim.wo[other_win].cursorbind = true
     end
 
     -- Restore when cursor moves out of the moved block

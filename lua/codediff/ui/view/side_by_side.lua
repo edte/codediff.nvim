@@ -127,6 +127,7 @@ function M.create(session_config, filetype, on_ready)
     list = false,
     foldenable = false,
     conceallevel = 0,
+    cursorbind = true,
   }
 
   for opt, val in pairs(win_opts) do
@@ -134,14 +135,61 @@ function M.create(session_config, filetype, on_ready)
     vim.wo[modified_win][opt] = val
   end
 
-  -- Keep conceallevel=0 in diff windows even when plugins (e.g. no-go.nvim) reset it
-  local conceal_group = vim.api.nvim_create_augroup("CodeDiffConceal_" .. tabpage, { clear = true })
-  vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter", "BufEnter" }, {
-    group = conceal_group,
+  -- Keep conceallevel=0 in diff windows (initial set; no-go.nvim skips these via codediff_restore)
+  vim.wo[original_win].conceallevel = 0
+  vim.wo[modified_win].conceallevel = 0
+
+  -- Clear no-go.nvim conceal extmarks from diff buffers (may have been set before diff opened)
+  local nogo_ns = vim.api.nvim_create_namespace("no-go")
+  if vim.api.nvim_buf_is_valid(original_info.bufnr) then
+    vim.api.nvim_buf_clear_namespace(original_info.bufnr, nogo_ns, 0, -1)
+  end
+  if vim.api.nvim_buf_is_valid(modified_info.bufnr) then
+    vim.api.nvim_buf_clear_namespace(modified_info.bufnr, nogo_ns, 0, -1)
+  end
+
+  -- Sync cursorline highlight to the other diff window via extmark
+  local ns_cursorline = vim.api.nvim_create_namespace("codediff-cursorline")
+  local cursorline_group = vim.api.nvim_create_augroup("CodeDiffCursorLine_" .. tabpage, { clear = true })
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+    group = cursorline_group,
+    callback = function()
+      local win = vim.api.nvim_get_current_win()
+      local other_win
+      if win == original_win then
+        other_win = modified_win
+      elseif win == modified_win then
+        other_win = original_win
+      else
+        return
+      end
+      if not vim.api.nvim_win_is_valid(other_win) then
+        return
+      end
+      local other_buf = vim.api.nvim_win_get_buf(other_win)
+      -- Clear previous highlight
+      vim.api.nvim_buf_clear_namespace(other_buf, ns_cursorline, 0, -1)
+      -- Set highlight on the matching line
+      local row = vim.api.nvim_win_get_cursor(win)[1] - 1
+      local line_count = vim.api.nvim_buf_line_count(other_buf)
+      if row < line_count then
+        vim.api.nvim_buf_set_extmark(other_buf, ns_cursorline, row, 0, {
+          end_row = row + 1,
+          hl_group = "CursorLine",
+          hl_eol = true,
+          priority = 50,
+        })
+      end
+    end,
+  })
+  -- Clear the extmark when entering the other window (native cursorline takes over)
+  vim.api.nvim_create_autocmd("WinEnter", {
+    group = cursorline_group,
     callback = function()
       local win = vim.api.nvim_get_current_win()
       if win == original_win or win == modified_win then
-        vim.wo[win].conceallevel = 0
+        local buf = vim.api.nvim_win_get_buf(win)
+        vim.api.nvim_buf_clear_namespace(buf, ns_cursorline, 0, -1)
       end
     end,
   })
@@ -504,6 +552,13 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
     -- Always read from buffers (single source of truth)
     local original_lines = vim.api.nvim_buf_get_lines(original_info.bufnr, 0, -1, false)
     local modified_lines = vim.api.nvim_buf_get_lines(modified_info.bufnr, 0, -1, false)
+
+    -- Clear no-go.nvim conceal extmarks before rendering diff
+    local nogo_ns_update = vim.api.nvim_create_namespace("no-go")
+    vim.api.nvim_buf_clear_namespace(original_info.bufnr, nogo_ns_update, 0, -1)
+    vim.api.nvim_buf_clear_namespace(modified_info.bufnr, nogo_ns_update, 0, -1)
+    vim.wo[original_win].conceallevel = 0
+    vim.wo[modified_win].conceallevel = 0
 
     local should_auto_scroll = auto_scroll_to_first_hunk == true
     local use_cursor_line = (auto_scroll_to_first_hunk == "cursor") and session_config.cursor_line or nil
