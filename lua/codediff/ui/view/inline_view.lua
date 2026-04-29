@@ -198,6 +198,8 @@ function M.create(session_config, filetype, on_ready)
 
   vim.wo[modified_win].cursorline = true
   vim.wo[modified_win].wrap = false
+  vim.wo[modified_win].foldenable = false
+  vim.wo[modified_win].conceallevel = 0
 
   local render_everything = function()
     if not vim.api.nvim_win_is_valid(modified_win) then

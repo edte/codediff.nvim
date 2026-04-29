@@ -125,12 +125,26 @@ function M.create(session_config, filetype, on_ready)
     cursorline = true,
     wrap = false,
     list = false,
+    foldenable = false,
+    conceallevel = 0,
   }
 
   for opt, val in pairs(win_opts) do
     vim.wo[original_win][opt] = val
     vim.wo[modified_win][opt] = val
   end
+
+  -- Keep conceallevel=0 in diff windows even when plugins (e.g. no-go.nvim) reset it
+  local conceal_group = vim.api.nvim_create_augroup("CodeDiffConceal_" .. tabpage, { clear = true })
+  vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter", "BufEnter" }, {
+    group = conceal_group,
+    callback = function()
+      local win = vim.api.nvim_get_current_win()
+      if win == original_win or win == modified_win then
+        vim.wo[win].conceallevel = 0
+      end
+    end,
+  })
 
   -- For explorer placeholder, create minimal session without rendering
   if is_explorer_placeholder or is_history_placeholder then
