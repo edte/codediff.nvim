@@ -38,7 +38,7 @@ end
 
 describe("Auto-scroll to first hunk", function()
   before_each(function()
-    require("codediff").setup({ diff = { layout = "side-by-side" } })
+    require("codediff").setup({ diff = { layout = "side-by-side", jump_to_first_change = true } })
     -- Setup highlights (was done globally in original)
     render.setup_highlights()
   end)

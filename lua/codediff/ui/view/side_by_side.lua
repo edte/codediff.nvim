@@ -256,6 +256,8 @@ function M.create(session_config, filetype, on_ready)
         end)
       else
         -- Normal mode: Compute and render diff between left and right
+        local jump_setting = config.options.diff.jump_to_first_change
+        local use_cursor_line = (jump_setting == "cursor") and session_config.cursor_line or nil
         local lines_diff = compute_and_render(
           original_info.bufnr,
           modified_info.bufnr,
@@ -265,7 +267,9 @@ function M.create(session_config, filetype, on_ready)
           modified_is_virtual,
           original_win,
           modified_win,
-          config.options.diff.jump_to_first_change
+          jump_setting == true,
+          nil,
+          use_cursor_line
         )
 
         if lines_diff then
@@ -488,6 +492,7 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
     local modified_lines = vim.api.nvim_buf_get_lines(modified_info.bufnr, 0, -1, false)
 
     local should_auto_scroll = auto_scroll_to_first_hunk == true
+    local use_cursor_line = (auto_scroll_to_first_hunk == "cursor") and session_config.cursor_line or nil
     local lines_diff
 
     if session_config.conflict then
@@ -534,7 +539,8 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
         original_win,
         modified_win,
         should_auto_scroll,
-        session_config.line_range
+        session_config.line_range,
+        use_cursor_line
       )
 
       if lines_diff then
@@ -549,7 +555,8 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
         setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
 
         -- Restore focus to the window that was active before update
-        if saved_current_win and vim.api.nvim_win_is_valid(saved_current_win) then
+        -- But when cursor_line is set, keep focus on the diff window
+        if not use_cursor_line and saved_current_win and vim.api.nvim_win_is_valid(saved_current_win) then
           vim.api.nvim_set_current_win(saved_current_win)
         end
       end

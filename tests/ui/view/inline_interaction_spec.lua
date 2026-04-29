@@ -60,7 +60,7 @@ describe("Inline diff mode interactions", function()
   before_each(function()
     -- Ensure no swap files interfere (user init.lua may re-enable swapfile)
     vim.opt.swapfile = false
-    require("codediff").setup({ diff = { layout = "inline" } })
+    require("codediff").setup({ diff = { layout = "inline", jump_to_first_change = true } })
     highlights.setup()
   end)
 

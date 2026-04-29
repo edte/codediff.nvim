@@ -28,8 +28,9 @@ end
 -- @param revision2 string?: Optional second revision. If provided, compares revision vs revision2.
 -- @param global_opts table?: Global options (e.g., { layout = "inline" })
 -- This function chains async git operations to get git root, resolve revision to hash, and get file content.
-local function handle_git_diff(revision, revision2, global_opts)
+local function handle_git_diff(revision, revision2, global_opts, cursor_line)
   local current_file = vim.api.nvim_buf_get_name(0)
+  cursor_line = cursor_line or vim.fn.line(".")
 
   if current_file == "" then
     vim.notify("Current buffer is not a file", vim.log.levels.ERROR)
@@ -85,6 +86,7 @@ local function handle_git_diff(revision, revision2, global_opts)
                   original_revision = commit_hash,
                   modified_revision = commit_hash2,
                   layout = global_opts.layout,
+                  cursor_line = cursor_line,
                 }
                 view.create(session_config, filetype)
               end)
@@ -102,6 +104,7 @@ local function handle_git_diff(revision, revision2, global_opts)
               original_revision = commit_hash,
               modified_revision = "WORKING",
               layout = global_opts.layout,
+              cursor_line = cursor_line,
             }
             view.create(session_config, filetype)
           end)
@@ -111,9 +114,10 @@ local function handle_git_diff(revision, revision2, global_opts)
   end)
 end
 
-local function handle_file_diff(file_a, file_b, global_opts)
+local function handle_file_diff(file_a, file_b, global_opts, cursor_line)
   -- Determine filetype from first file
   local filetype = vim.filetype.match({ filename = file_a }) or ""
+  cursor_line = cursor_line or vim.fn.line(".")
 
   -- Snapshot state before creating diff tab (for argv cleanup below)
   local prev_tab = vim.api.nvim_get_current_tabpage()
@@ -130,6 +134,7 @@ local function handle_file_diff(file_a, file_b, global_opts)
     original_revision = nil,
     modified_revision = nil,
     layout = global_opts.layout,
+    cursor_line = cursor_line,
   }
   view.create(session_config, filetype)
 
@@ -315,11 +320,12 @@ local function handle_history(range, file_path, flags, line_range, global_opts)
   end
 end
 
-local function handle_explorer(revision, revision2, global_opts)
+local function handle_explorer(revision, revision2, global_opts, cursor_line)
   -- Try buffer path first (consistent with original behavior), fallback to cwd
   local current_buf = vim.api.nvim_get_current_buf()
   local current_file = vim.api.nvim_buf_get_name(current_buf)
   local cwd = vim.fn.getcwd()
+  cursor_line = cursor_line or vim.fn.line(".")
 
   local function open_explorer(git_root)
     -- Compute focus_file (relative path to current buffer) for focusing in explorer
@@ -353,6 +359,7 @@ local function handle_explorer(revision, revision2, global_opts)
           original_revision = original_rev,
           modified_revision = modified_rev,
           layout = global_opts.layout,
+          cursor_line = cursor_line,
           explorer_data = {
             status_result = status_result,
             focus_file = focus_file, -- Focus on current file if changed
@@ -487,6 +494,7 @@ end
 -- Wrapper for merge-base single-file diff: computes merge-base first, then opens diff
 local function handle_git_diff_merge_base(base_rev, target_rev, global_opts)
   local current_file = vim.api.nvim_buf_get_name(0)
+  local cursor_line = vim.fn.line(".")
   if current_file == "" then
     vim.notify("Current buffer is not a file", vim.log.levels.ERROR)
     return
@@ -509,9 +517,8 @@ local function handle_git_diff_merge_base(base_rev, target_rev, global_opts)
         return
       end
 
-      -- Schedule the diff call to run in main context (handle_git_diff uses nvim_buf_get_name)
       vim.schedule(function()
-        handle_git_diff(merge_base_hash, target_rev, global_opts)
+        handle_git_diff(merge_base_hash, target_rev, global_opts, cursor_line)
       end)
     end)
   end)
@@ -623,6 +630,8 @@ function M.vscode_diff(opts)
   -- Pre-parse global flags; strip them so subcommand dispatch sees clean args
   local global_opts = {}
   local args = {}
+  -- Capture cursor line before any async/tab operations lose context
+  local cursor_line = vim.fn.line(".")
   for _, arg in ipairs(opts.fargs) do
     if arg == "--inline" then
       global_opts.layout = "inline"
@@ -666,7 +675,7 @@ function M.vscode_diff(opts)
         handle_git_diff_merge_base(base, target, global_opts)
       else
         -- :CodeDiff file HEAD
-        handle_git_diff(args[2], nil, global_opts)
+        handle_git_diff(args[2], nil, global_opts, cursor_line)
       end
     elseif #args == 3 then
       -- Check if arguments are files or revisions
@@ -676,10 +685,10 @@ function M.vscode_diff(opts)
       -- If both are readable files, treat as file diff
       if vim.fn.filereadable(arg1) == 1 and vim.fn.filereadable(arg2) == 1 then
         -- :CodeDiff file file_a.txt file_b.txt
-        handle_file_diff(arg1, arg2, global_opts)
+        handle_file_diff(arg1, arg2, global_opts, cursor_line)
       else
         -- Assume revisions: :CodeDiff file main HEAD
-        handle_git_diff(arg1, arg2, global_opts)
+        handle_git_diff(arg1, arg2, global_opts, cursor_line)
       end
     else
       vim.notify("Usage: :CodeDiff file <revision> [revision2] OR :CodeDiff file <file_a> <file_b>", vim.log.levels.ERROR)
