@@ -136,6 +136,7 @@ function M.toggle_visibility(explorer)
   end
 
   local tabpage = vim.api.nvim_get_current_tabpage()
+  local lifecycle = require("codediff.ui.lifecycle")
 
   if explorer.is_hidden then
     explorer.split:show()
@@ -144,6 +145,16 @@ function M.toggle_visibility(explorer)
 
     vim.schedule(function()
       layout.arrange(tabpage)
+      -- Focus explorer after showing
+      if explorer.winid and vim.api.nvim_win_is_valid(explorer.winid) then
+        -- Save which diff window was focused before entering explorer
+        local current_win = vim.api.nvim_get_current_win()
+        local orig_win, mod_win = lifecycle.get_windows(tabpage)
+        if current_win == orig_win or current_win == mod_win then
+          explorer.last_diff_win = current_win
+        end
+        vim.api.nvim_set_current_win(explorer.winid)
+      end
     end)
   else
     explorer.split:hide()
@@ -151,6 +162,15 @@ function M.toggle_visibility(explorer)
 
     vim.schedule(function()
       layout.arrange(tabpage)
+      -- Restore focus to the diff window that was active before entering explorer
+      if explorer.last_diff_win and vim.api.nvim_win_is_valid(explorer.last_diff_win) then
+        vim.api.nvim_set_current_win(explorer.last_diff_win)
+      else
+        local _, mod_win = lifecycle.get_windows(tabpage)
+        if mod_win and vim.api.nvim_win_is_valid(mod_win) then
+          vim.api.nvim_set_current_win(mod_win)
+        end
+      end
     end)
   end
 end
