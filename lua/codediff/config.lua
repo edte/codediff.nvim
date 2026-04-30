@@ -5,8 +5,14 @@ M.defaults = {
   -- Highlight configuration
   highlights = {
     -- Line-level highlights: accepts highlight group names (e.g., "DiffAdd") or color values (e.g., "#2ea043")
-    line_insert = "DiffAdd", -- Line-level insertions (base color)
-    line_delete = "DiffDelete", -- Line-level deletions (base color)
+    line_insert = "DiffAdd", -- Line-level insertions (base color, used for modifications)
+    line_delete = "DiffDelete", -- Line-level deletions (base color, used for modifications)
+
+    -- Emph highlights for pure insertions/deletions (no matching line on the other side)
+    -- Like delta's minus-emph-style / plus-emph-style
+    -- nil = derived from char_insert/char_delete colors
+    line_insert_emph = nil, -- Pure insertion line background (more saturated green)
+    line_delete_emph = nil, -- Pure deletion line background (more saturated red)
 
     -- Character-level highlights: accepts highlight group names or color values
     -- If specified, these override char_brightness calculation

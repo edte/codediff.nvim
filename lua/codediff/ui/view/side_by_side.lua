@@ -135,18 +135,13 @@ function M.create(session_config, filetype, on_ready)
     vim.wo[modified_win][opt] = val
   end
 
-  -- Keep conceallevel=0 in diff windows (initial set; no-go.nvim skips these via codediff_restore)
+  -- Keep conceallevel=0 in diff windows
   vim.wo[original_win].conceallevel = 0
   vim.wo[modified_win].conceallevel = 0
 
-  -- Clear no-go.nvim conceal extmarks from diff buffers (may have been set before diff opened)
-  local nogo_ns = vim.api.nvim_create_namespace("no-go")
-  if vim.api.nvim_buf_is_valid(original_info.bufnr) then
-    vim.api.nvim_buf_clear_namespace(original_info.bufnr, nogo_ns, 0, -1)
-  end
-  if vim.api.nvim_buf_is_valid(modified_info.bufnr) then
-    vim.api.nvim_buf_clear_namespace(modified_info.bufnr, nogo_ns, 0, -1)
-  end
+  -- Disable mini.hipatterns on diff buffers (checked by H.is_disabled internally)
+  vim.api.nvim_buf_set_var(original_info.bufnr, "minihipatterns_disable", true)
+  vim.api.nvim_buf_set_var(modified_info.bufnr, "minihipatterns_disable", true)
 
   -- Sync cursorline highlight to the other diff window via extmark
   local ns_cursorline = vim.api.nvim_create_namespace("codediff-cursorline")
@@ -559,6 +554,12 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
     vim.api.nvim_buf_clear_namespace(modified_info.bufnr, nogo_ns_update, 0, -1)
     vim.wo[original_win].conceallevel = 0
     vim.wo[modified_win].conceallevel = 0
+
+    -- Disable LSP document color in diff buffers
+    if vim.lsp.document_color then
+      pcall(vim.lsp.document_color.enable, false, original_info.bufnr)
+      pcall(vim.lsp.document_color.enable, false, modified_info.bufnr)
+    end
 
     local should_auto_scroll = auto_scroll_to_first_hunk == true
     local use_cursor_line = (auto_scroll_to_first_hunk == "cursor") and session_config.cursor_line or nil

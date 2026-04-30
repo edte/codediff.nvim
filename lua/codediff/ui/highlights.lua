@@ -121,6 +121,28 @@ function M.setup()
   vim.api.nvim_set_hl(0, "CodeDiffCharInsert", char_insert_color)
   vim.api.nvim_set_hl(0, "CodeDiffCharDelete", char_delete_color)
 
+  -- Emph highlights for pure insertions/deletions (delta's emph-style)
+  -- Used when a line has no matching line on the other side (pure add/delete)
+  local line_insert_emph_color
+  local line_delete_emph_color
+
+  if opts.line_insert_emph then
+    line_insert_emph_color = resolve_color(opts.line_insert_emph, 0x2a4556, base256_color(0, 2, 0))
+  else
+    -- Default: use char_insert color (more saturated than line_insert)
+    line_insert_emph_color = vim.deepcopy(char_insert_color)
+  end
+
+  if opts.line_delete_emph then
+    line_delete_emph_color = resolve_color(opts.line_delete_emph, 0x4b2a3d, base256_color(2, 0, 0))
+  else
+    -- Default: use char_delete color (more saturated than line_delete)
+    line_delete_emph_color = vim.deepcopy(char_delete_color)
+  end
+
+  vim.api.nvim_set_hl(0, "CodeDiffLineInsertEmph", line_insert_emph_color)
+  vim.api.nvim_set_hl(0, "CodeDiffLineDeleteEmph", line_delete_emph_color)
+
   -- Moved code highlights (derived from DiffChange — the standard "changed" color)
   local diff_change_hl = vim.api.nvim_get_hl(0, { name = "DiffChange", link = false })
   local move_fallback = diff_change_hl.bg or 0x4f5258

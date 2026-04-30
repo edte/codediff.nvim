@@ -327,12 +327,16 @@ function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, 
     local orig_is_empty = (mapping.original.end_line <= mapping.original.start_line)
     local mod_is_empty = (mapping.modified.end_line <= mapping.modified.start_line)
 
-    if not orig_is_empty then
+    if not orig_is_empty and not mod_is_empty then
+      -- Modification: both sides have lines (delta minus-style/plus-style, subtle bg)
       apply_line_highlights(left_bufnr, mapping.original, "CodeDiffLineDelete")
-    end
-
-    if not mod_is_empty then
       apply_line_highlights(right_bufnr, mapping.modified, "CodeDiffLineInsert")
+    elseif not orig_is_empty then
+      -- Pure deletion: original has lines, modified is empty (delta minus-emph-style, saturated bg)
+      apply_line_highlights(left_bufnr, mapping.original, "CodeDiffLineDeleteEmph")
+    elseif not mod_is_empty then
+      -- Pure insertion: modified has lines, original is empty (delta plus-emph-style, saturated bg)
+      apply_line_highlights(right_bufnr, mapping.modified, "CodeDiffLineInsertEmph")
     end
 
     if mapping.inner_changes then
